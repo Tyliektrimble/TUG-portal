@@ -932,9 +932,8 @@ function sendFeedback() {
   const portalId = urlParams.get('portalId');
 
   if (portalId) {
-    // 2. Tell the page where your Google API is
-    // PASTE YOUR GOOGLE WEB APP URL BELOW (Keep the ?portalId=${portalId} at the end)
-    const apiUrl = `https://script.google.com/macros/s/AKfycbwmBPo05Po7iRzNozR50AdppafZ6vLqODjzLVzKG_xEZ-1at7SZTPN4qjYLQoBCkKPm4A/exec`;
+    // 2. The Google API link WITH the ID parameter attached at the end!
+    const apiUrl = `https://script.google.com/macros/s/AKfycbwmBPo05Po7iRzNozR50AdppafZ6vLqODjzLVzKG_xEZ-1at7SZTPN4qjYLQoBCkKPm4A/exec?portalId=${portalId}`;
 
     // 3. Fetch the data silently
     fetch(apiUrl)
@@ -942,9 +941,8 @@ function sendFeedback() {
       .then(data => {
         console.log("Success! Data loaded:", data);
         
-        // 4. Inject the data into your HTML elements (Update these to match your actual HTML IDs)
-        // Example: document.getElementById('customer-name').innerText = data.customerName;
-        // Example: document.getElementById('go-live-date').innerText = data.goLiveDate;
+        // 4. Inject the data into your HTML elements 
+        // document.getElementById('YOUR_HTML_ID').innerText = data.customerName;
         
       })
       .catch(error => {
