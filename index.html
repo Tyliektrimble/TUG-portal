@@ -926,6 +926,34 @@ function sendFeedback() {
     })
     .submitCustomerFeedback(type, comment, CURRENT_SHEET_ID);
 }
+<script>
+  // 1. Read the customer ID from the GitHub web address
+  const urlParams = new URLSearchParams(window.location.search);
+  const portalId = urlParams.get('portalId');
+
+  if (portalId) {
+    // 2. Tell the page where your Google API is
+    // PASTE YOUR GOOGLE WEB APP URL BELOW (Keep the ?portalId=${portalId} at the end)
+    const apiUrl = `https://script.google.com/macros/s/AKfycbwmBPo05Po7iRzNozR50AdppafZ6vLqODjzLVzKG_xEZ-1at7SZTPN4qjYLQoBCkKPm4A/exec`;
+
+    // 3. Fetch the data silently
+    fetch(apiUrl)
+      .then(response => response.json())
+      .then(data => {
+        console.log("Success! Data loaded:", data);
+        
+        // 4. Inject the data into your HTML elements (Update these to match your actual HTML IDs)
+        // Example: document.getElementById('customer-name').innerText = data.customerName;
+        // Example: document.getElementById('go-live-date').innerText = data.goLiveDate;
+        
+      })
+      .catch(error => {
+        console.error('Error fetching data:', error);
+      });
+  } else {
+    // What shows up if someone just goes to the base GitHub link without an ID
+    document.body.innerHTML = "<h2 style='text-align:center; margin-top:50px;'>Error: Invalid Customer Link</h2>";
+  }
 </script>
 </body>
 </html>
