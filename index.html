@@ -4,10 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Project Portal</title>
-<script>
-  // Captures the ID passed by the server script
-  const CURRENT_SHEET_ID = "<?= sheetId ?>";
-</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f4f6f9;color:#333}
@@ -100,7 +96,6 @@ tr:hover{background:#f9fafb}
 .signoff-confirmed p { color: #2e7d32; font-size: 14px; }
 .quick-link-card.signoff-card { border: 2px solid #0D2B6B; }
 
-/* FLOATING FEEDBACK BUTTON */
 .floating-feedback-btn {
   position: fixed;
   bottom: 20px;
@@ -194,7 +189,6 @@ tr:hover{background:#f9fafb}
     <span class="modal-close" onclick="closeFeedbackModal()">×</span>
     <h3 style="border-bottom: 2px solid #F2A900; padding-bottom: 5px; display: inline-block; margin-bottom: 15px;">💡 Feedback & Suggestions</h3>
     
-    <!-- CLARIFICATION CALLOUT -->
     <div style="background:#e3f2fd; border-left:4px solid #1976d2; padding:12px; margin-bottom:15px; border-radius:4px; font-size:13px; color:#0D2B6B; line-height:1.4;">
       <strong>Note:</strong> This form is strictly for feedback regarding this Project Portal website. To report bugs or issues regarding your software upgrade testing, please log them in the <strong>RAID Log</strong>.
     </div>
@@ -332,6 +326,11 @@ tr:hover{background:#f9fafb}
 </div>
 
 <script>
+// 1. EXTRACT PORTAL ID FROM URL
+const urlParams = new URLSearchParams(window.location.search);
+const CURRENT_SHEET_ID = urlParams.get('portalId');
+const API_BASE_URL = 'https://script.google.com/macros/s/AKfycbwmBPo05Po7iRzNozR50AdppafZ6vLqODjzLVzKG_xEZ-1at7SZTPN4qjYLQoBCkKPm4A/exec';
+
 var tabsLoaded = {home:false, raid:false, plan:false, contacts:false};
 
 function escHtml(s) {
@@ -404,111 +403,123 @@ function closeFeedbackModal() {
 }
 
 function loadHome() {
-  google.script.run.withSuccessHandler(function(r) {
-    if (!r.ok) {
+  if (!CURRENT_SHEET_ID) {
+    document.getElementById('homeError').style.display = 'block';
+    document.getElementById('homeError').textContent = 'Error: No Portal ID provided in URL address.';
+    return;
+  }
+
+  fetch(`${API_BASE_URL}?portalId=${CURRENT_SHEET_ID}&action=getPortalData`)
+    .then(res => res.json())
+    .then(r => {
+      if (!r.ok && r.ok !== undefined) {
+        var e = document.getElementById('homeError');
+        e.style.display = 'block';
+        e.textContent = 'Error loading portal data: ' + (r.error || 'Unknown error');
+        return;
+      }
+      document.getElementById('homeError').style.display = 'none';
+      document.getElementById('valGoLive').textContent = r.goLiveDate || '--';
+      document.getElementById('valDays').textContent = (r.daysUntilGoLive !== undefined && r.daysUntilGoLive !== '') ? r.daysUntilGoLive : '--';
+      document.getElementById('valTemp').textContent = r.temperature || '--';
+      if (r.openIssues !== undefined) document.getElementById('valIssues').textContent = r.openIssues;
+      
+      var card = document.getElementById('cardTemp');
+      card.className = 'stat-card temp-' + (r.temperature || 'green').toLowerCase();
+      if (r.customerName) {
+        document.getElementById('portalTitle').textContent = r.customerName + ' - Project Portal';
+        document.title = r.customerName + ' - Project Portal';
+      }
+      
+      var pmName = r.pm || r.projectManager; 
+      if (r.csm || pmName) {
+        var bar = document.getElementById('csmBar');
+        bar.style.display = 'block';
+        var barText = [];
+        if(r.csm) barText.push('Customer Success Manager: ' + r.csm);
+        if(pmName) barText.push('Project Manager: ' + pmName);
+        bar.textContent = barText.join(' | ');
+      }
+
+      var announcementEl = document.getElementById('announcementText');
+      if (r.announcement && r.announcement.toString().trim() !== '') {
+        announcementEl.textContent = r.announcement;
+        announcementEl.className = 'announcement-text';
+      } else {
+        announcementEl.textContent = 'No announcements at this time.';
+        announcementEl.className = 'announcement-empty';
+      }
+      tabsLoaded.home = true;
+      loadSignoffStatus();
+      loadRecentOpenItems();
+    })
+    .catch(err => {
       var e = document.getElementById('homeError');
       e.style.display = 'block';
-      e.textContent = 'Error loading portal data: ' + (r.error || 'Unknown error');
-      return;
-    }
-    document.getElementById('homeError').style.display = 'none';
-    document.getElementById('valGoLive').textContent = r.goLiveDate || '--';
-    document.getElementById('valDays').textContent = r.daysUntilGoLive !== '' ? r.daysUntilGoLive : '--';
-    document.getElementById('valTemp').textContent = r.temperature;
-    
-    var card = document.getElementById('cardTemp');
-    card.className = 'stat-card temp-' + (r.temperature || 'green').toLowerCase();
-    if (r.customerName) {
-      document.getElementById('portalTitle').textContent = r.customerName + ' - Project Portal';
-      document.title = r.customerName + ' - Project Portal';
-    }
-    
-    var pmName = r.pm || r.projectManager; 
-    if (r.csm || pmName) {
-      var bar = document.getElementById('csmBar');
-      bar.style.display = 'block';
-      var barText = [];
-      if(r.csm) barText.push('Customer Success Manager: ' + r.csm);
-      if(pmName) barText.push('Project Manager: ' + pmName);
-      bar.textContent = barText.join(' | ');
-    }
-
-    var announcementEl = document.getElementById('announcementText');
-    if (r.announcement && r.announcement.toString().trim() !== '') {
-      announcementEl.textContent = r.announcement;
-      announcementEl.className = 'announcement-text';
-    } else {
-      announcementEl.textContent = 'No announcements at this time.';
-      announcementEl.className = 'announcement-empty';
-    }
-    tabsLoaded.home = true;
-    loadSignoffStatus();
-    loadRecentOpenItems(); 
-  }).withFailureHandler(function(err) {
-    var e = document.getElementById('homeError');
-    e.style.display = 'block';
-    e.textContent = 'Failed to load portal data: ' + err.message;
-  }).getPortalData(CURRENT_SHEET_ID);
+      e.textContent = 'Failed to load portal data: ' + err.message;
+    });
 }
 
 function loadRecentOpenItems() {
-  google.script.run.withSuccessHandler(function(result) {
-    if (!result.ok || !result.rows) return;
-    
-    var statusIdx = 5; 
-    var typeIdx = 1, titleIdx = 2, prioIdx = -1;
-
-    (result.headers || []).forEach(function(h, i) {
-       var lower = h.toLowerCase();
-       if (lower === 'status' || lower === 'state') statusIdx = i;
-       if (lower === 'type') typeIdx = i;
-       if (lower === 'title') titleIdx = i;
-       if (lower === 'priority') prioIdx = i;
-    });
-    if (prioIdx === -1) prioIdx = 4; 
-
-    var openItems = result.rows.filter(function(row) {
-      var status = (row[statusIdx] || '').toString().toLowerCase();
-      return status.includes('open') || status.includes('in progress');
-    });
-
-    document.getElementById('valIssues').textContent = openItems.length;
-
-    var container = document.getElementById('recentItemsContainer');
-    var section = document.getElementById('recentItemsSection');
-
-    if (openItems.length > 0) {
-      var top5 = openItems.slice(0, 5);
+  fetch(`${API_BASE_URL}?portalId=${CURRENT_SHEET_ID}&action=getRaidData`)
+    .then(res => res.json())
+    .then(result => {
+      if (!result.ok || !result.rows) return;
       
-      var html = '<table><thead><tr>';
-      var cols = [typeIdx, titleIdx, prioIdx, statusIdx]; 
-      cols.forEach(function(ci) {
-        if(result.headers[ci]) html += '<th>' + escHtml(result.headers[ci]) + '</th>';
+      var statusIdx = 5; 
+      var typeIdx = 1, titleIdx = 2, prioIdx = -1;
+
+      (result.headers || []).forEach(function(h, i) {
+         var lower = h.toLowerCase();
+         if (lower === 'status' || lower === 'state') statusIdx = i;
+         if (lower === 'type') typeIdx = i;
+         if (lower === 'title') titleIdx = i;
+         if (lower === 'priority') prioIdx = i;
       });
-      html += '</tr></thead><tbody>';
-      
-      top5.forEach(function(row) {
-        html += '<tr>';
+      if (prioIdx === -1) prioIdx = 4; 
+
+      var openItems = result.rows.filter(function(row) {
+        var status = (row[statusIdx] || '').toString().toLowerCase();
+        return status.includes('open') || status.includes('in progress');
+      });
+
+      document.getElementById('valIssues').textContent = openItems.length;
+
+      var container = document.getElementById('recentItemsContainer');
+      var section = document.getElementById('recentItemsSection');
+
+      if (openItems.length > 0) {
+        var top5 = openItems.slice(0, 5);
+        
+        var html = '<table><thead><tr>';
+        var cols = [typeIdx, titleIdx, prioIdx, statusIdx]; 
         cols.forEach(function(ci) {
-           var cellRaw = (row[ci] || '').toString().trim();
-           var val = cellRaw === '' ? '-' : escHtml(cellRaw);
-           
-           if (cellRaw !== '' && (ci === statusIdx || ci === prioIdx)) { 
-             var cls = 'badge-' + cellRaw.toLowerCase().replace(/\s+/g, '-');
-             val = '<span class="badge ' + cls + '">' + val + '</span>';
-           }
-           html += '<td>' + val + '</td>';
+           if(result.headers[ci]) html += '<th>' + escHtml(result.headers[ci]) + '</th>';
         });
-        html += '</tr>';
-      });
-      html += '</tbody></table>';
-      
-      container.innerHTML = html;
-      section.style.display = 'block';
-    } else {
-      section.style.display = 'none'; 
-    }
-  }).getRaidData(CURRENT_SHEET_ID);
+        html += '</tr></thead><tbody>';
+        
+        top5.forEach(function(row) {
+          html += '<tr>';
+          cols.forEach(function(ci) {
+             var cellRaw = (row[ci] || '').toString().trim();
+             var val = cellRaw === '' ? '-' : escHtml(cellRaw);
+             
+             if (cellRaw !== '' && (ci === statusIdx || ci === prioIdx)) { 
+               var cls = 'badge-' + cellRaw.toLowerCase().replace(/\s+/g, '-');
+               val = '<span class="badge ' + cls + '">' + val + '</span>';
+             }
+             html += '<td>' + val + '</td>';
+          });
+          html += '</tr>';
+        });
+        html += '</tbody></table>';
+        
+        container.innerHTML = html;
+        section.style.display = 'block';
+      } else {
+        section.style.display = 'none'; 
+      }
+    });
 }
 
 function renderGenericTable(result, containerId) {
@@ -539,12 +550,18 @@ function renderGenericTable(result, containerId) {
 
 function loadPlan() {
   if (tabsLoaded.plan) return;
-  google.script.run.withSuccessHandler(function(r){tabsLoaded.plan=true;renderGenericTable(r,'planTableContainer')}).withFailureHandler(function(err){document.getElementById('planTableContainer').innerHTML='<div class="error-state" style="display:block">'+escHtml(err.message)+'</div>'}).getProjectPlanData(CURRENT_SHEET_ID);
+  fetch(`${API_BASE_URL}?portalId=${CURRENT_SHEET_ID}&action=getProjectPlanData`)
+    .then(res => res.json())
+    .then(r => { tabsLoaded.plan = true; renderGenericTable(r, 'planTableContainer'); })
+    .catch(err => { document.getElementById('planTableContainer').innerHTML = '<div class="error-state" style="display:block">' + escHtml(err.message) + '</div>'; });
 }
 
 function loadContacts() {
   if (tabsLoaded.contacts) return;
-  google.script.run.withSuccessHandler(function(r){tabsLoaded.contacts=true;renderGenericTable(r,'contactsTableContainer')}).withFailureHandler(function(err){document.getElementById('contactsTableContainer').innerHTML='<div class="error-state" style="display:block">'+escHtml(err.message)+'</div>'}).getContactsData(CURRENT_SHEET_ID);
+  fetch(`${API_BASE_URL}?portalId=${CURRENT_SHEET_ID}&action=getContactsData`)
+    .then(res => res.json())
+    .then(r => { tabsLoaded.contacts = true; renderGenericTable(r, 'contactsTableContainer'); })
+    .catch(err => { document.getElementById('contactsTableContainer').innerHTML = '<div class="error-state" style="display:block">' + escHtml(err.message) + '</div>'; });
 }
 
 loadHome();
@@ -553,16 +570,19 @@ function loadRaid(forceReload) {
   if (tabsLoaded.raid && !forceReload) return;
   document.getElementById('raidTableContainer').innerHTML = '<div class="loading">Loading RAID data...</div>';
   
-  google.script.run.withSuccessHandler(function(result) {
-    tabsLoaded.raid = true;
-    renderRaidTable(result);
-  }).withFailureHandler(function(err) {
-    tabsLoaded.raid = false;
-    var d = document.getElementById('raidDiag');
-    d.style.display = 'block';
-    d.textContent = 'Error: ' + err.message;
-    document.getElementById('raidTableContainer').innerHTML = '<div class="error-state" style="display:block">Failed to load RAID data.</div>';
-  }).getRaidData(CURRENT_SHEET_ID);
+  fetch(`${API_BASE_URL}?portalId=${CURRENT_SHEET_ID}&action=getRaidData`)
+    .then(res => res.json())
+    .then(result => {
+      tabsLoaded.raid = true;
+      renderRaidTable(result);
+    })
+    .catch(err => {
+      tabsLoaded.raid = false;
+      var d = document.getElementById('raidDiag');
+      d.style.display = 'block';
+      d.textContent = 'Error: ' + err.message;
+      document.getElementById('raidTableContainer').innerHTML = '<div class="error-state" style="display:block">Failed to load RAID data.</div>';
+    });
 }
 
 function renderRaidTable(result) {
@@ -583,19 +603,13 @@ function renderRaidTable(result) {
     return;
   }
   
-  var attachmentColIndex = -1;
-  var descColIndex = -1;
-  var resColIndex = -1;
-  var titleColIndex = -1;
-  var statusColIndex = -1;
-  var priorityColIndex = -1;
+  var attachmentColIndex = -1, descColIndex = -1, resColIndex = -1, titleColIndex = -1, statusColIndex = -1, priorityColIndex = -1;
   var validCols = [];
   
   (result.headers || []).forEach(function(h, index) {
     var headerText = h.toString().trim();
     var lower = headerText.toLowerCase();
     
-    // THIS REMOVES ANTI-SPAM AND LAST MODIFIED COLUMNS FROM THE PORTAL VIEW
     if (lower.indexOf('last modified') > -1 || lower.indexOf('anti-spam') > -1 || lower.indexOf('antispam') > -1 || headerText === '') return; 
     
     validCols.push(index);
@@ -678,7 +692,6 @@ function submitRaid(event) {
   }
 
   var files = fileInput.files;
-  
   if (files.length > 3) {
     msgEl.textContent = '⚠ You can only upload a maximum of 3 files.';
     msgEl.className = 'raid-form-msg error';
@@ -687,9 +700,7 @@ function submitRaid(event) {
   }
 
   var totalSize = 0;
-  for (var i = 0; i < files.length; i++) {
-    totalSize += files[i].size;
-  }
+  for (var i = 0; i < files.length; i++) totalSize += files[i].size;
   if (totalSize > 10485760) {
     msgEl.textContent = '⚠ Total file size exceeds the 10MB limit. Please choose smaller files.';
     msgEl.className = 'raid-form-msg error';
@@ -713,7 +724,6 @@ function submitRaid(event) {
             mimeType: file.type,
             bytes: e.target.result.split(',')[1]
           });
-          
           filesProcessed++;
           if (filesProcessed === files.length) {
             executeSubmission(type, title, desc, priority, email, filesData);
@@ -731,53 +741,47 @@ function executeSubmission(type, title, desc, priority, email, filesData) {
   var btn   = document.getElementById('raidSubmitBtn');
   var msgEl = document.getElementById('raidFormMsg');
 
-  var isTimeout = false;
-  var timeoutId = setTimeout(function() {
-    isTimeout = true;
+  fetch(API_BASE_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'submitRaidItem',
+      portalId: CURRENT_SHEET_ID,
+      type: type,
+      title: title,
+      desc: desc,
+      priority: priority,
+      email: email,
+      filesData: filesData
+    })
+  })
+  .then(res => res.json())
+  .then(result => {
     btn.disabled = false;
     btn.textContent = 'Submit Issue';
-    msgEl.textContent = '❌ Submission timed out (took longer than 45s). The files may be too large or your connection is slow.';
-    msgEl.className = 'raid-form-msg error';
-    msgEl.style.display = 'block'; 
-  }, 45000); 
-
-  google.script.run
-    .withSuccessHandler(function(result) {
-      if (isTimeout) return; 
-      clearTimeout(timeoutId);
-
-      btn.disabled = false;
-      btn.textContent = 'Submit Issue';
-      
-      if (!result || !result.ok) {
-        msgEl.textContent = '❌ Submission failed: ' + ((result && result.error) ? result.error : 'Unknown error');
-        msgEl.className = 'raid-form-msg error';
-        msgEl.style.display = 'block'; 
-        return;
-      }
-      
-      document.getElementById('modalFormContainer').style.display = 'none';
-      document.getElementById('modalSuccessContainer').style.display = 'block';
-      
-      tabsLoaded.raid = false; 
-      loadRecentOpenItems();   
-    })
-    .withFailureHandler(function(err) {
-      if (isTimeout) return;
-      clearTimeout(timeoutId);
-
-      btn.disabled = false;
-      btn.textContent = 'Submit Issue';
-      msgEl.textContent = '❌ Submission failed: ' + (err ? err.message : 'Unknown error');
+    if (!result || !result.ok) {
+      msgEl.textContent = '❌ Submission failed: ' + ((result && result.error) ? result.error : 'Unknown error');
       msgEl.className = 'raid-form-msg error';
-      msgEl.style.display = 'block';
-    })
-    .submitRaidItem(CURRENT_SHEET_ID, type, title, desc, priority, email, filesData);
+      msgEl.style.display = 'block'; 
+      return;
+    }
+    document.getElementById('modalFormContainer').style.display = 'none';
+    document.getElementById('modalSuccessContainer').style.display = 'block';
+    tabsLoaded.raid = false; 
+    loadRecentOpenItems();   
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.textContent = 'Submit Issue';
+    msgEl.textContent = '❌ Submission failed: ' + err.message;
+    msgEl.className = 'raid-form-msg error';
+    msgEl.style.display = 'block';
+  });
 }
 
 function loadSignoffStatus() {
-  google.script.run
-    .withSuccessHandler(function(result) {
+  fetch(`${API_BASE_URL}?portalId=${CURRENT_SHEET_ID}&action=getSignoffStatus`)
+    .then(res => res.json())
+    .then(result => {
       if (!result || !result.ok || !result.available) {
         document.getElementById('signoffQuickLink').style.display = 'none';
         document.getElementById('signoffSection').style.display = 'none';
@@ -797,13 +801,9 @@ function loadSignoffStatus() {
         document.getElementById('signoffFormWrap').style.display = 'block';
         document.getElementById('signoffConfirmed').style.display = 'none';
         var openCount = parseInt(document.getElementById('valIssues').textContent) || 0;
-        if (openCount > 0) {
-          document.getElementById('soOpenIssuesWrap').style.display = 'block';
-        }
+        if (openCount > 0) document.getElementById('soOpenIssuesWrap').style.display = 'block';
       }
-    })
-    .withFailureHandler(function(err) {})
-    .getSignoffStatus(CURRENT_SHEET_ID);
+    });
 }
 
 function scrollToSignoff() {
@@ -811,7 +811,7 @@ function scrollToSignoff() {
 }
 
 function submitSignoffForm() {
-  var contact  = document.getElementById('soContact').value.trim();
+  var contact   = document.getElementById('soContact').value.trim();
   var firstName = document.getElementById('soFirstName').value.trim();
   var lastName  = document.getElementById('soLastName').value.trim();
   var email     = document.getElementById('soEmail').value.trim();
@@ -836,58 +836,74 @@ function submitSignoffForm() {
   btn.disabled = true;
   btn.textContent = 'Submitting...';
   
-  google.script.run
-    .withSuccessHandler(function(result) {
-      btn.disabled = false;
-      btn.textContent = 'Confirm Sign Off';
-      if (!result || !result.ok) {
-        msgEl.textContent = '❌ ' + ((result && result.error) ? result.error : 'Submission failed.');
-        msgEl.style.cssText = 'display:block;background:#ffebee;color:#c62828;padding:12px 16px;border-radius:6px;font-size:13px;margin-top:14px;';
-        return;
-      }
-      document.getElementById('signoffFormWrap').style.display = 'none';
-      document.getElementById('signoffConfirmed').style.display = 'block';
-      document.getElementById('signoffConfirmedMsg').textContent = 'Signed off by ' + firstName + ' ' + lastName + ' (' + initials + ') at ' + result.timestamp + '. Notifications sent to your project team.';
-      var ql = document.getElementById('signoffQuickLink');
-      ql.querySelector('.icon').textContent = '❌';
-      ql.querySelector('.title').textContent = 'Cancel Sign Off';
-      ql.onclick = cancelSignoffAction;
+  fetch(API_BASE_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'submitSignoff',
+      portalId: CURRENT_SHEET_ID,
+      contact: contact,
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+      phone: phone,
+      initials: initials,
+      aware: aware
     })
-    .withFailureHandler(function(err) {
-      btn.disabled = false;
-      btn.textContent = 'Confirm Sign Off';
-      msgEl.textContent = '❌ ' + (err ? err.message : 'Unknown error.');
+  })
+  .then(res => res.json())
+  .then(result => {
+    btn.disabled = false;
+    btn.textContent = 'Confirm Sign Off';
+    if (!result || !result.ok) {
+      msgEl.textContent = '❌ ' + ((result && result.error) ? result.error : 'Submission failed.');
       msgEl.style.cssText = 'display:block;background:#ffebee;color:#c62828;padding:12px 16px;border-radius:6px;font-size:13px;margin-top:14px;';
-    })
-    .submitSignoff(CURRENT_SHEET_ID, contact, firstName, lastName, email, phone, initials, aware);
+      return;
+    }
+    document.getElementById('signoffFormWrap').style.display = 'none';
+    document.getElementById('signoffConfirmed').style.display = 'block';
+    document.getElementById('signoffConfirmedMsg').textContent = 'Signed off by ' + firstName + ' ' + lastName + ' (' + initials + ') at ' + result.timestamp + '. Notifications sent to your project team.';
+    var ql = document.getElementById('signoffQuickLink');
+    ql.querySelector('.icon').textContent = '❌';
+    ql.querySelector('.title').textContent = 'Cancel Sign Off';
+    ql.onclick = cancelSignoffAction;
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.textContent = 'Confirm Sign Off';
+    msgEl.textContent = '❌ ' + err.message;
+    msgEl.style.cssText = 'display:block;background:#ffebee;color:#c62828;padding:12px 16px;border-radius:6px;font-size:13px;margin-top:14px;';
+  });
 }
 
 function cancelSignoffAction() {
-  google.script.run
-    .withSuccessHandler(function(result) {
-      if (!result || !result.ok) return;
-      document.getElementById('signoffConfirmed').style.display = 'none';
-      document.getElementById('signoffFormWrap').style.display = 'block';
-      document.getElementById('soContact').value = '';
-      document.getElementById('soFirstName').value = '';
-      document.getElementById('soLastName').value = '';
-      document.getElementById('soEmail').value = '';
-      document.getElementById('soPhone').value = '';
-      document.getElementById('soInitials').value = '';
-      document.getElementById('soAwareCheckbox').checked = false;
-      document.getElementById('soFormMsg').style.display = 'none';
-      var ql = document.getElementById('signoffQuickLink');
-      ql.querySelector('.icon').textContent = '✍️';
-      ql.querySelector('.title').textContent = 'Sign Off on Upgrade';
-      ql.onclick = scrollToSignoff;
+  fetch(API_BASE_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'cancelSignoff',
+      portalId: CURRENT_SHEET_ID
     })
-    .withFailureHandler(function(err) {
-      alert('Could not cancel sign off: ' + (err ? err.message : 'unknown error'));
-    })
-    .cancelSignoff(CURRENT_SHEET_ID);
+  })
+  .then(res => res.json())
+  .then(result => {
+    if (!result || !result.ok) return;
+    document.getElementById('signoffConfirmed').style.display = 'none';
+    document.getElementById('signoffFormWrap').style.display = 'block';
+    document.getElementById('soContact').value = '';
+    document.getElementById('soFirstName').value = '';
+    document.getElementById('soLastName').value = '';
+    document.getElementById('soEmail').value = '';
+    document.getElementById('soPhone').value = '';
+    document.getElementById('soInitials').value = '';
+    document.getElementById('soAwareCheckbox').checked = false;
+    document.getElementById('soFormMsg').style.display = 'none';
+    var ql = document.getElementById('signoffQuickLink');
+    ql.querySelector('.icon').textContent = '✍️';
+    ql.querySelector('.title').textContent = 'Sign Off on Upgrade';
+    ql.onclick = scrollToSignoff;
+  })
+  .catch(err => alert('Could not cancel sign off: ' + err.message));
 }
 
-// SUGGESTION BOX SUBMISSION SCRIPT
 function sendFeedback() {
   var type = document.getElementById('feedbackType').value;
   var comment = document.getElementById('feedbackComment').value;
@@ -904,54 +920,36 @@ function sendFeedback() {
   btn.textContent = "Sending...";
   statusDiv.style.display = 'none';
 
-  google.script.run
-    .withSuccessHandler(function(response) {
-      btn.disabled = false;
-      btn.textContent = "Submit to Team";
-      statusDiv.style.display = 'block';
-      if (response.indexOf("Error") > -1) {
-        statusDiv.style.cssText = "display:block;background:#ffebee;color:#c62828;padding:12px 16px;border-radius:6px;font-size:13px;margin-top:14px;";
-      } else {
-        statusDiv.style.cssText = "display:block;background:#e8f5e9;color:#2e7d32;padding:12px 16px;border-radius:6px;font-size:13px;margin-top:14px;";
-        document.getElementById('feedbackComment').value = ""; 
-        setTimeout(closeFeedbackModal, 2500); // Auto-close the modal after 2.5 seconds
-      }
-      statusDiv.innerText = response;
+  fetch(API_BASE_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'submitCustomerFeedback',
+      portalId: CURRENT_SHEET_ID,
+      type: type,
+      comment: comment
     })
-    .withFailureHandler(function(err) {
-      btn.disabled = false;
-      btn.textContent = "Submit to Team";
+  })
+  .then(res => res.text())
+  .then(response => {
+    btn.disabled = false;
+    btn.textContent = "Submit to Team";
+    statusDiv.style.display = 'block';
+    if (response.indexOf("Error") > -1) {
       statusDiv.style.cssText = "display:block;background:#ffebee;color:#c62828;padding:12px 16px;border-radius:6px;font-size:13px;margin-top:14px;";
-      statusDiv.innerText = "Error: " + err.message;
-    })
-    .submitCustomerFeedback(type, comment, CURRENT_SHEET_ID);
+    } else {
+      statusDiv.style.cssText = "display:block;background:#e8f5e9;color:#2e7d32;padding:12px 16px;border-radius:6px;font-size:13px;margin-top:14px;";
+      document.getElementById('feedbackComment').value = ""; 
+      setTimeout(closeFeedbackModal, 2500);
+    }
+    statusDiv.innerText = response;
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.textContent = "Submit to Team";
+    statusDiv.style.cssText = "display:block;background:#ffebee;color:#c62828;padding:12px 16px;border-radius:6px;font-size:13px;margin-top:14px;";
+    statusDiv.innerText = "Error: " + err.message;
+  });
 }
-<script>
-  // 1. Read the customer ID from the GitHub web address
-  const urlParams = new URLSearchParams(window.location.search);
-  const portalId = urlParams.get('portalId');
-
-  if (portalId) {
-    // 2. The Google API link WITH the ID parameter attached at the end!
-    const apiUrl = `https://script.google.com/macros/s/AKfycbwmBPo05Po7iRzNozR50AdppafZ6vLqODjzLVzKG_xEZ-1at7SZTPN4qjYLQoBCkKPm4A/exec?portalId=${portalId}`;
-
-    // 3. Fetch the data silently
-    fetch(apiUrl)
-      .then(response => response.json())
-      .then(data => {
-        console.log("Success! Data loaded:", data);
-        
-        // 4. Inject the data into your HTML elements 
-        // document.getElementById('YOUR_HTML_ID').innerText = data.customerName;
-        
-      })
-      .catch(error => {
-        console.error('Error fetching data:', error);
-      });
-  } else {
-    // What shows up if someone just goes to the base GitHub link without an ID
-    document.body.innerHTML = "<h2 style='text-align:center; margin-top:50px;'>Error: Invalid Customer Link</h2>";
-  }
 </script>
 </body>
 </html>
