@@ -214,7 +214,8 @@ function loadContacts() {
   });
 }
 
-loadHome();
+document.addEventListener('DOMContentLoaded', function() {
+  loadHome();
 
 function loadRaid(forceReload) {
   if (tabsLoaded.raid && !forceReload) return;
