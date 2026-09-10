@@ -13,13 +13,9 @@ const PORTAL_ID = urlParams.get('portalId');
 
 // ⚠️ REPLACE THIS WITH YOUR ACTUAL MASTER WEB APP DEPLOYMENT ID!
 const MASTER_API_URL = "https://script.google.com/macros/s/AKfycby3PKx1WSI2t1THzGC7iTVzN-BAKZriTcC9MyghZ6Kbcx4jKsxYRIJ8pzDrodEsyiknxg/exec";
-
-// Fallback to URL parameter since Apps Script templating doesn't run on GitHub
 const CURRENT_SHEET_ID = PORTAL_ID;
-
 var tabsLoaded = { home: false, raid: false, plan: false, contacts: false };
 
-// Helper function for API GET requests
 function apiGet(action, successCb, failureCb) {
   if (!PORTAL_ID) {
     if (failureCb) failureCb({ message: "Missing portalId parameter in URL" });
@@ -36,7 +32,6 @@ function apiGet(action, successCb, failureCb) {
     });
 }
 
-// Helper function for API POST requests
 function apiPost(payload, successCb, failureCb) {
   payload.sheetId = PORTAL_ID;
   fetch(MASTER_API_URL, {
@@ -100,7 +95,6 @@ function refreshData(event) {
   }, 1000);
 }
 
-// Issue Modal
 function openModal() { document.getElementById('issueModal').style.display = 'flex'; }
 function closeModal() { document.getElementById('issueModal').style.display = 'none'; resetModalForm(); }
 function resetModalForm() {
@@ -110,7 +104,6 @@ function resetModalForm() {
   document.getElementById('raidFormMsg').style.display = 'none';
 }
 
-// Feedback Modal
 function openFeedbackModal() { 
   document.getElementById('feedbackModal').style.display = 'flex'; 
   document.getElementById('feedbackStatus').style.display = 'none';
@@ -214,9 +207,6 @@ function loadContacts() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-  loadHome();
-
 function loadRaid(forceReload) {
   if (tabsLoaded.raid && !forceReload) return;
   document.getElementById('raidTableContainer').innerHTML = '<div class="loading">Loading RAID data...</div>';
@@ -307,10 +297,10 @@ function loadRecentOpenItems() {
   apiGet('getRaidData', function(result) {
     if (!result.ok || !result.rows) return;
     
-    var typeIdx = 1;   // Col B: Type
-    var titleIdx = 2;  // Col C: Title
-    var prioIdx = 6;   // Col G: Priority
-    var statusIdx = 5; // Col F: Status
+    var typeIdx = 1;
+    var titleIdx = 2;
+    var prioIdx = 6;
+    var statusIdx = 5;
 
     (result.headers || []).forEach(function(h, i) {
        var lower = h.toString().toLowerCase().trim();
@@ -353,7 +343,7 @@ function loadRecentOpenItems() {
         });
         html += '</tr>';
       });
-      html += '</tbody></table>';
+      html += '</tbody>mtable></div>';
       
       container.innerHTML = html;
       section.style.display = 'block';
@@ -621,6 +611,7 @@ function cancelSignoffAction() {
     alert('Could not cancel sign off: ' + (err.message || err));
   });
 }
+
 function sendFeedback() {
   var type = document.getElementById('feedbackType').value;
   var comment = document.getElementById('feedbackComment').value;
@@ -665,7 +656,6 @@ function sendFeedback() {
   });
 }
 
-// Safely load home tab after HTML elements render
 document.addEventListener('DOMContentLoaded', function() {
   loadHome();
 });
