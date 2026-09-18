@@ -3,47 +3,77 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Project Portal</title>
+<title>QA Project Portal</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f4f6f9;color:#333}
+.header{background:#0D2B6B;color:#fff;padding:16px 24px;display:flex;align-items:center;gap:16px}
+.header h1{font-size:1.4rem;font-weight:600}
+.csm-bar{background:#e8eaf6;padding:8px 24px;font-size:0.9rem;display:none}
+.nav{background:#1B3A6B;display:flex;gap:0;overflow-x:auto}
+.nav button{background:none;border:none;color:#fff;padding:12px 20px;cursor:pointer;font-size:0.95rem;border-bottom:3px solid transparent}
+.nav button.active{border-bottom:3px solid #4FC3F7;font-weight:600}
+.tab{display:none;padding:24px;max-width:95%;margin:0 auto}
+.tab.active{display:block}
+.stat-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:#fff;border-radius:8px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);text-align:center}
+.stat-card h3{font-size:0.85rem;color:#666;margin-bottom:8px;text-transform:uppercase}
+.stat-card .value{font-size:1.8rem;font-weight:700;color:#0D2B6B}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-top:16px;}
+th{background:#0D2B6B;color:#fff;padding:12px 14px;text-align:left;font-size:0.85rem}
+td{padding:12px 14px;border-bottom:1px solid #e5e7eb;font-size:0.9rem}
+.error-state{background:#ffebee;color:#c62828;padding:16px;border-radius:8px;margin-bottom:16px;display:none}
+.loading{text-align:center;padding:40px;color:#666}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1 id="portalTitle">QA Project Portal</h1>
+</div>
+<div class="csm-bar" id="csmBar"></div>
+
+<div class="nav">
+  <button class="active" onclick="showTab('home')">Home</button>
+  <button onclick="showTab('raid')">RAID Log</button>
+  <button onclick="showTab('plan')">Project Plan</button>
+  <button onclick="showTab('contacts')">Contacts</button>
+</div>
+
+<div class="tab active" id="tab-home">
+  <div class="error-state" id="homeError"></div>
+  <div class="stat-cards">
+    <div class="stat-card"><h3>Go-Live Date</h3><div class="value" id="valGoLive">--</div></div>
+    <div class="stat-card"><h3>Days Until Go-Live</h3><div class="value" id="valDays">--</div></div>
+    <div class="stat-card"><h3>Temperature</h3><div class="value" id="valTemp">--</div></div>
+  </div>
+</div>
+
+<div class="tab" id="tab-raid"><div id="raidTableContainer"><div class="loading">Loading RAID data...</div></div></div>
+<div class="tab" id="tab-plan"><div id="planTableContainer"><div class="loading">Loading project plan...</div></div></div>
+<div class="tab" id="tab-contacts"><div id="contactsTableContainer"><div class="loading">Loading contacts...</div></div></div>
+
 <script>
 // ==========================================
-// API CONFIGURATION & PARAMETER PARSING
+// CONFIGURATION
 // ==========================================
 const urlParams = new URLSearchParams(window.location.search);
 const PORTAL_ID = urlParams.get('portalId');
 
-// ⚠️ REPLACE THIS WITH YOUR ACTUAL MASTER WEB APP DEPLOYMENT ID!
-const MASTER_API_URL = "https://script.google.com/macros/s/AKfycby3PKx1WSI2t1THzGC7iTVzN-BAKZriTcC9MyghZ6Kbcx4jKsxYRIJ8pzDrodEsyiknxg/exec";
-const CURRENT_SHEET_ID = PORTAL_ID;
+// ⚠️ PASTE YOUR NEW QA APPS SCRIPT WEB APP URL HERE:
+const MASTER_API_URL = "https://script.google.com/macros/s/YOUR_QA_DEPLOYMENT_ID/exec";
+
 var tabsLoaded = { home: false, raid: false, plan: false, contacts: false };
 
 function apiGet(action, successCb, failureCb) {
   if (!PORTAL_ID) {
-    if (failureCb) failureCb({ message: "Missing portalId parameter in URL" });
+    if (failureCb) failureCb({ message: "Missing ?portalId= parameter in URL" });
     return;
   }
   fetch(`${MASTER_API_URL}?portalId=${PORTAL_ID}&action=${action}`)
     .then(res => res.json())
-    .then(res => {
-      var payload = res.data !== undefined ? res.data : res;
-      successCb(payload);
-    })
-    .catch(err => {
-      if (failureCb) failureCb(err);
-    });
-}
-
-function apiPost(payload, successCb, failureCb) {
-  payload.sheetId = PORTAL_ID;
-  fetch(MASTER_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload)
-  })
-  .then(res => res.json())
-  .then(res => successCb(res))
-  .catch(err => {
-    if (failureCb) failureCb(err);
-  });
+    .then(res => successCb(res))
+    .catch(err => { if (failureCb) failureCb(err); });
 }
 
 function escHtml(s) {
@@ -53,591 +83,75 @@ function escHtml(s) {
 }
 
 function showTab(name) {
-  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active')});
-  document.querySelectorAll('.nav button').forEach(function(b){b.classList.remove('active')});
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
   
-  var targetTab = document.getElementById('tab-'+name);
-  if (targetTab) targetTab.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
   
-  var btns = document.querySelectorAll('.nav button');
-  var tabs = ['home','raid','plan','contacts','resources'];
+  var tabs = ['home','raid','plan','contacts'];
   var idx = tabs.indexOf(name);
-  if (idx >= 0 && btns[idx]) btns[idx].classList.add('active');
+  if (idx >= 0) document.querySelectorAll('.nav button')[idx].classList.add('active');
   
   if (name === 'home') loadHome();
-  if (name === 'raid') loadRaid(false);
+  if (name === 'raid') loadRaid();
   if (name === 'plan') loadPlan();
   if (name === 'contacts') loadContacts();
-}
-
-function refreshData(event) {
-  tabsLoaded = {home:false, raid:false, plan:false, contacts:false};
-  var refreshBtn = event.target;
-  var originalText = refreshBtn.textContent;
-  refreshBtn.textContent = '↻ Refreshing...';
-  
-  var activeTab = document.querySelector('.tab.active');
-  var tabName = activeTab.id.replace('tab-', ''); 
-  
-  if (tabName === 'home') loadHome();
-  if (tabName === 'raid') loadRaid(true);
-  if (tabName === 'plan') {
-    document.getElementById('planTableContainer').innerHTML = '<div class="loading">Loading project plan...</div>';
-    loadPlan();
-  }
-  if (tabName === 'contacts') {
-    document.getElementById('contactsTableContainer').innerHTML = '<div class="loading">Loading contacts...</div>';
-    loadContacts();
-  }
-  
-  setTimeout(function() {
-    refreshBtn.textContent = originalText;
-  }, 1000);
-}
-
-function openModal() { document.getElementById('issueModal').style.display = 'flex'; }
-function closeModal() { document.getElementById('issueModal').style.display = 'none'; resetModalForm(); }
-function resetModalForm() {
-  document.getElementById('raidForm').reset();
-  document.getElementById('modalFormContainer').style.display = 'block';
-  document.getElementById('modalSuccessContainer').style.display = 'none';
-  document.getElementById('raidFormMsg').style.display = 'none';
-}
-
-function openFeedbackModal() { 
-  document.getElementById('feedbackModal').style.display = 'flex'; 
-  document.getElementById('feedbackStatus').style.display = 'none';
-  document.getElementById('feedbackComment').value = '';
-}
-function closeFeedbackModal() { 
-  document.getElementById('feedbackModal').style.display = 'none'; 
 }
 
 function loadHome() {
   apiGet('getPortalData', function(r) {
     var e = document.getElementById('homeError');
     if (!r.ok) {
-      if (e) {
-        e.style.display = 'block';
-        e.textContent = 'Error loading portal data: ' + (r.error || 'Unknown error');
-      }
+      if (e) { e.style.display = 'block'; e.textContent = 'Error: ' + (r.error || 'Unknown'); }
       return;
     }
     if (e) e.style.display = 'none';
-    
-    // Rest of loadHome logic...
+    document.getElementById('valGoLive').textContent = r.goLiveDate || '--';
+    document.getElementById('valDays').textContent = r.daysUntilGoLive !== '' ? r.daysUntilGoLive : '--';
+    document.getElementById('valTemp').textContent = r.temperature || '--';
+    if (r.customerName) document.getElementById('portalTitle').textContent = r.customerName + ' - QA Portal';
   }, function(err) {
     var e = document.getElementById('homeError');
-    if (e) {
-      e.style.display = 'block';
-      e.textContent = 'Failed to load portal data: ' + (err.message || err);
-    }
+    if (e) { e.style.display = 'block'; e.textContent = 'Fetch Failed: ' + err.message; }
   });
 }
 
-function renderGenericTable(result, containerId) {
+function renderTable(result, containerId) {
   var container = document.getElementById(containerId);
-  if (!result.ok) {
-    container.innerHTML = '<div class="error-state" style="display:block">Error: ' + escHtml(result.error || 'Unknown') + '</div>';
-    return;
-  }
-  if (!result.rows || result.rows.length === 0) {
-    container.innerHTML = '<p style="padding:20px;color:#666">No data available.</p>';
+  if (!result.ok || !result.rows || result.rows.length === 0) {
+    container.innerHTML = '<p style="padding:20px;">No data available.</p>';
     return;
   }
   var html = '<table><thead><tr>';
-  (result.headers || []).forEach(function(h){html += '<th>' + escHtml(h) + '</th>'});
+  (result.headers || []).forEach(h => { html += '<th>' + escHtml(h) + '</th>'; });
   html += '</tr></thead><tbody>';
-  result.rows.forEach(function(row) {
+  result.rows.forEach(row => {
     html += '<tr>';
-    row.forEach(function(cell){
-      var cellStr = (cell || '').toString().trim();
-      var displayVal = cellStr === '' ? '-' : escHtml(cellStr);
-      html += '<td>' + displayVal + '</td>';
-    });
+    row.forEach(cell => { html += '<td>' + escHtml(cell) + '</td>'; });
     html += '</tr>';
   });
   html += '</tbody></table>';
   container.innerHTML = html;
 }
 
+function loadRaid() {
+  if (tabsLoaded.raid) return;
+  apiGet('getRaidData', function(r) { tabsLoaded.raid = true; renderTable(r, 'raidTableContainer'); });
+}
+
 function loadPlan() {
   if (tabsLoaded.plan) return;
-  apiGet('getProjectPlanData', function(r) {
-    tabsLoaded.plan = true;
-    renderGenericTable(r, 'planTableContainer');
-  }, function(err) {
-    document.getElementById('planTableContainer').innerHTML = '<div class="error-state" style="display:block">' + escHtml(err.message || err) + '</div>';
-  });
+  apiGet('getProjectPlanData', function(r) { tabsLoaded.plan = true; renderTable(r, 'planTableContainer'); });
 }
 
 function loadContacts() {
   if (tabsLoaded.contacts) return;
-  apiGet('getContactsData', function(r) {
-    tabsLoaded.contacts = true;
-    renderGenericTable(r, 'contactsTableContainer');
-  }, function(err) {
-    document.getElementById('contactsTableContainer').innerHTML = '<div class="error-state" style="display:block">' + escHtml(err.message || err) + '</div>';
-  });
-}
-
-function loadRaid(forceReload) {
-  if (tabsLoaded.raid && !forceReload) return;
-  document.getElementById('raidTableContainer').innerHTML = '<div class="loading">Loading RAID data...</div>';
-  
-  apiGet('getRaidData', function(result) {
-    tabsLoaded.raid = true;
-    renderRaidTable(result);
-  }, function(err) {
-    tabsLoaded.raid = false;
-    var d = document.getElementById('raidDiag');
-    d.style.display = 'block';
-    d.textContent = 'Error: ' + (err.message || err);
-    document.getElementById('raidTableContainer').innerHTML = '<div class="error-state" style="display:block">Failed to load RAID data.</div>';
-  });
-}
-
-function submitRaid(event) {
-  event.preventDefault();
-  var type     = document.getElementById('raidType').value;
-  var title    = document.getElementById('raidTitle').value.trim();
-  var desc     = document.getElementById('raidDesc').value.trim();
-  var priority = document.getElementById('raidPriority').value;
-  var email    = document.getElementById('raidEmail').value.trim();
-  var fileInput= document.getElementById('raidFile');
-  var msgEl    = document.getElementById('raidFormMsg');
-  var btn      = document.getElementById('raidSubmitBtn');
-
-  msgEl.className = 'raid-form-msg';
-  msgEl.style.display = 'none';
-
-  if (!type || !title || !desc || !priority || !email) {
-    msgEl.textContent = '⚠ Please fill in all required fields (including a valid email).';
-    msgEl.className = 'raid-form-msg error';
-    msgEl.style.display = 'block';
-    return;
-  }
-
-  var files = fileInput.files;
-  if (files.length > 3) {
-    msgEl.textContent = '⚠ You can only upload a maximum of 3 files.';
-    msgEl.className = 'raid-form-msg error';
-    msgEl.style.display = 'block';
-    return;
-  }
-
-  var totalSize = 0;
-  for (var i = 0; i < files.length; i++) {
-    totalSize += files[i].size;
-  }
-  if (totalSize > 10485760) {
-    msgEl.textContent = '⚠ Total file size exceeds the 10MB limit. Please choose smaller files.';
-    msgEl.className = 'raid-form-msg error';
-    msgEl.style.display = 'block'; 
-    return;
-  }
-
-  btn.disabled = true;
-  btn.textContent = 'Submitting...';
-
-  if (files.length > 0) {
-    var filesData = [];
-    var filesProcessed = 0;
-
-    for (var j = 0; j < files.length; j++) {
-      (function(file) {
-        var reader = new FileReader();
-        reader.onload = function(e) {
-          filesData.push({
-            filename: file.name,
-            mimeType: file.type,
-            bytes: e.target.result.split(',')[1]
-          });
-          
-          filesProcessed++;
-          if (filesProcessed === files.length) {
-            executeSubmission(type, title, desc, priority, email, filesData);
-          }
-        };
-        reader.readAsDataURL(file);
-      })(files[j]);
-    }
-  } else {
-    executeSubmission(type, title, desc, priority, email, []);
-  }
-}
-
-function loadRecentOpenItems() {
-  apiGet('getRaidData', function(result) {
-    if (!result.ok || !result.rows) return;
-    
-    var typeIdx = 1;
-    var titleIdx = 2;
-    var prioIdx = 6;
-    var statusIdx = 5;
-
-    (result.headers || []).forEach(function(h, i) {
-       var lower = h.toString().toLowerCase().trim();
-       if (lower === 'status' || lower === 'state') statusIdx = i;
-       if (lower === 'type') typeIdx = i;
-       if (lower === 'title') titleIdx = i;
-       if (lower === 'priority') prioIdx = i;
-    });
-
-    var openItems = result.rows.filter(function(row) {
-      var status = (row[statusIdx] || '').toString().toLowerCase();
-      return status.includes('open') || status.includes('in progress');
-    });
-
-    document.getElementById('valIssues').textContent = openItems.length;
-
-    var container = document.getElementById('recentItemsContainer');
-    var section = document.getElementById('recentItemsSection');
-
-    if (openItems.length > 0) {
-      var top5 = openItems.slice(0, 5);
-      var html = '<table><thead><tr>';
-      var cols = [typeIdx, titleIdx, prioIdx, statusIdx]; 
-      cols.forEach(function(ci) {
-        if(result.headers[ci]) html += '<th>' + escHtml(result.headers[ci]) + '</th>';
-      });
-      html += '</tr></thead><tbody>';
-      
-      top5.forEach(function(row) {
-        html += '<tr>';
-        cols.forEach(function(ci) {
-           var cellRaw = (row[ci] || '').toString().trim();
-           var val = cellRaw === '' ? '-' : escHtml(cellRaw);
-           
-           if (cellRaw !== '' && (ci === statusIdx || ci === prioIdx)) { 
-             var cls = 'badge-' + cellRaw.toLowerCase().replace(/\s+/g, '-');
-             val = '<span class="badge ' + cls + '">' + val + '</span>';
-           }
-           html += '<td>' + val + '</td>';
-        });
-        html += '</tr>';
-      });
-      html += '</tbody>mtable></div>';
-      
-      container.innerHTML = html;
-      section.style.display = 'block';
-    } else {
-      section.style.display = 'none'; 
-    }
-  });
-}
-
-function renderRaidTable(result) {
-  var container = document.getElementById('raidTableContainer');
-  container.style.overflow = 'visible'; 
-  container.style.border = 'none';
-
-  if (!result.ok) {
-    var d = document.getElementById('raidDiag');
-    d.style.display = 'block';
-    d.textContent = 'Error: ' + (result.error || 'Unknown');
-    container.innerHTML = '<div class="error-state" style="display:block">Error loading RAID data.</div>';
-    return;
-  }
-  if (!result.rows || result.rows.length === 0) {
-    container.innerHTML = '<div style="padding:20px; color:#aaa; text-align:center; background:white; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.07);">No RAID items have been logged yet.</div>';
-    return;
-  }
-  
-  var attachmentColIndex = -1;
-  var descColIndex = -1;
-  var resColIndex = -1;
-  var titleColIndex = -1;
-  var statusColIndex = -1;
-  var priorityColIndex = -1;
-  var validCols = [];
-  
-  (result.headers || []).forEach(function(h, index) {
-    var headerText = h.toString().trim();
-    var lower = headerText.toLowerCase();
-    
-    if (lower.indexOf('last modified') > -1 || lower.indexOf('anti-spam') > -1 || lower.indexOf('antispam') > -1 || headerText === '') return; 
-    
-    validCols.push(index);
-    if (lower.indexOf('attachment') > -1) attachmentColIndex = index;
-    if (lower.indexOf('description') > -1) descColIndex = index;
-    if (lower.indexOf('resolution') > -1) resColIndex = index;
-    if (lower.indexOf('title') > -1) titleColIndex = index;
-    if (lower === 'status' || lower === 'state') statusColIndex = index;
-    if (lower === 'priority') priorityColIndex = index;
-  });
-
-  var html = '<div style="max-height: 65vh; width: 100%; overflow: auto; border: 1px solid #d1d5db; border-radius: 8px; position: relative; background: #f9fafb;">';
-  html += '<table style="width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; margin: 0;">';
-  html += '<thead><tr>';
-  validCols.forEach(function(ci) {
-    html += '<th style="position: sticky; top: 0; z-index: 1000; background-color: #0D2B6B; color: #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.25); border: none; padding: 14px; text-align: left; font-size: 0.85rem;">' + escHtml(result.headers[ci]) + '</th>';
-  });
-  html += '</tr></thead>';
-  
-  html += '<tbody style="background-color: #ffffff;">';
-  result.rows.forEach(function(row) {
-    html += '<tr>';
-    validCols.forEach(function(ci) {
-      var rawText = (row[ci] || '').toString().trim();
-      var val = escHtml(rawText);
-      var tdAttributes = ' style="border-bottom: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb; padding: 12px 14px;"'; 
-
-      if (rawText === '') {
-        val = '-';
-      } else {
-        if (ci === attachmentColIndex) {
-          var url = '';
-          var hypMatch = rawText.match(/=HYPERLINK\("([^"]+)"/i);
-          var httpMatch = rawText.match(/(https?:\/\/[^\s]+)/i); 
-          if (hypMatch) url = hypMatch[1];
-          else if (httpMatch) url = httpMatch[0];
-          
-          if (url) val = '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="color:#1565c0;text-decoration:underline;font-weight:600;">View Attachment</a>';
-        } else if (ci === statusColIndex) {
-          var cls = 'badge-' + rawText.toLowerCase().replace(/\s+/g, '-');
-          val = '<span class="badge ' + cls + '">' + val + '</span>';
-        } else if (ci === priorityColIndex) {
-          var cls = 'badge-' + rawText.toLowerCase();
-          val = '<span class="badge ' + cls + '">' + val + '</span>';
-        } else if (ci === descColIndex || ci === resColIndex || ci === titleColIndex) {
-          tdAttributes = ' title="' + escHtml(rawText) + '" style="border-bottom: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb; padding: 12px 14px; min-width: 250px; max-width: 350px; cursor: help;"';
-          if (rawText.length > 200) {
-            val = escHtml(rawText.substring(0, 200)) + '...';
-          }
-        }
-      }
-      html += '<td' + tdAttributes + '>' + val + '</td>';
-    });
-    html += '</tr>';
-  });
-  
-  html += '</tbody></table></div>';
-  container.innerHTML = html;
-}
-
-function executeSubmission(type, title, desc, priority, email, filesData) {
-  var btn   = document.getElementById('raidSubmitBtn');
-  var msgEl = document.getElementById('raidFormMsg');
-
-  var isTimeout = false;
-  var timeoutId = setTimeout(function() {
-    isTimeout = true;
-    btn.disabled = false;
-    btn.textContent = 'Submit Issue';
-    msgEl.textContent = '❌ Submission timed out (took longer than 45s). The files may be too large or your connection is slow.';
-    msgEl.className = 'raid-form-msg error';
-    msgEl.style.display = 'block'; 
-  }, 45000); 
-
-  var payload = {
-    action: "submitRaidItem",
-    type: type,
-    title: title,
-    desc: desc,
-    priority: priority,
-    email: email,
-    filesData: filesData
-  };
-
-  apiPost(payload, function(result) {
-    if (isTimeout) return; 
-    clearTimeout(timeoutId);
-
-    btn.disabled = false;
-    btn.textContent = 'Submit Issue';
-    
-    if (!result || !result.ok) {
-      msgEl.textContent = '❌ Submission failed: ' + ((result && result.error) ? result.error : 'Unknown error');
-      msgEl.className = 'raid-form-msg error';
-      msgEl.style.display = 'block'; 
-      return;
-    }
-    
-    document.getElementById('modalFormContainer').style.display = 'none';
-    document.getElementById('modalSuccessContainer').style.display = 'block';
-    
-    tabsLoaded.raid = false; 
-    loadRecentOpenItems();   
-  }, function(err) {
-    if (isTimeout) return;
-    clearTimeout(timeoutId);
-
-    btn.disabled = false;
-    btn.textContent = 'Submit Issue';
-    msgEl.textContent = '❌ Submission failed: ' + (err.message || err);
-    msgEl.className = 'raid-form-msg error';
-    msgEl.style.display = 'block';
-  });
-}
-
-function loadSignoffStatus() {
-  apiGet('getSignoffStatus', function(result) {
-    if (!result || !result.ok || !result.available) {
-      document.getElementById('signoffQuickLink').style.display = 'none';
-      document.getElementById('signoffSection').style.display = 'none';
-      return;
-    }
-    document.getElementById('signoffQuickLink').style.display = 'block';
-    document.getElementById('signoffSection').style.display = 'block';
-    if (result.completed) {
-      document.getElementById('signoffFormWrap').style.display = 'none';
-      document.getElementById('signoffConfirmed').style.display = 'block';
-      document.getElementById('signoffConfirmedMsg').textContent = 'Your sign off has been recorded. Contact your CSM if you need to make changes.';
-      var ql = document.getElementById('signoffQuickLink');
-      ql.querySelector('.icon').textContent = '❌';
-      ql.querySelector('.title').textContent = 'Cancel Sign Off';
-      ql.onclick = cancelSignoffAction;
-    } else {
-      document.getElementById('signoffFormWrap').style.display = 'block';
-      document.getElementById('signoffConfirmed').style.display = 'none';
-      var openCount = parseInt(document.getElementById('valIssues').textContent) || 0;
-      if (openCount > 0) {
-        document.getElementById('soOpenIssuesWrap').style.display = 'block';
-      }
-    }
-  });
-}
-
-function scrollToSignoff() {
-  document.getElementById('signoffSection').scrollIntoView({ behavior: 'smooth' });
-}
-
-function submitSignoffForm() {
-  var contact   = document.getElementById('soContact').value.trim();
-  var firstName = document.getElementById('soFirstName').value.trim();
-  var lastName  = document.getElementById('soLastName').value.trim();
-  var email     = document.getElementById('soEmail').value.trim();
-  var phone     = document.getElementById('soPhone').value.trim();
-  var initials  = document.getElementById('soInitials').value.trim();
-  var openCount = parseInt(document.getElementById('valIssues').textContent) || 0;
-  var aware     = document.getElementById('soAwareCheckbox').checked;
-  var msgEl     = document.getElementById('soFormMsg');
-  var btn       = document.getElementById('soSubmitBtn');
-  
-  msgEl.style.display = 'none';
-  if (!firstName || !lastName || !initials) {
-    msgEl.textContent = '⚠ Please fill in First Name, Last Name, and Initials.';
-    msgEl.style.cssText = 'display:block;background:#ffebee;color:#c62828;padding:12px 16px;border-radius:6px;font-size:13px;margin-top:14px;';
-    return;
-  }
-  if (openCount > 0 && !aware) {
-    msgEl.textContent = '⚠ You have open RAID issues. Please check the box to confirm you are aware and will proceed.';
-    msgEl.style.cssText = 'display:block;background:#ffebee;color:#c62828;padding:12px 16px;border-radius:6px;font-size:13px;margin-top:14px;';
-    return;
-  }
-  btn.disabled = true;
-  btn.textContent = 'Submitting...';
-  
-  var payload = {
-    action: "submitSignoff",
-    contact: contact,
-    firstName: firstName,
-    lastName: lastName,
-    email: email,
-    phone: phone,
-    initials: initials,
-    aware: aware
-  };
-
-  apiPost(payload, function(result) {
-    btn.disabled = false;
-    btn.textContent = 'Confirm Sign Off';
-    if (!result || !result.ok) {
-      msgEl.textContent = '❌ ' + ((result && result.error) ? result.error : 'Submission failed.');
-      msgEl.style.cssText = 'display:block;background:#ffebee;color:#c62828;padding:12px 16px;border-radius:6px;font-size:13px;margin-top:14px;';
-      return;
-    }
-    document.getElementById('signoffFormWrap').style.display = 'none';
-    document.getElementById('signoffConfirmed').style.display = 'block';
-    document.getElementById('signoffConfirmedMsg').textContent = 'Signed off by ' + firstName + ' ' + lastName + ' (' + initials + ') at ' + result.timestamp + '. Notifications sent to your project team.';
-    var ql = document.getElementById('signoffQuickLink');
-    ql.querySelector('.icon').textContent = '❌';
-    ql.querySelector('.title').textContent = 'Cancel Sign Off';
-    ql.onclick = cancelSignoffAction;
-  }, function(err) {
-    btn.disabled = false;
-    btn.textContent = 'Confirm Sign Off';
-    msgEl.textContent = '❌ ' + (err.message || err);
-    msgEl.style.cssText = 'display:block;background:#ffebee;color:#c62828;padding:12px 16px;border-radius:6px;font-size:13px;margin-top:14px;';
-  });
-}
-
-function cancelSignoffAction() {
-  var payload = { action: "cancelSignoff" };
-  apiPost(payload, function(result) {
-    if (!result || !result.ok) return;
-    document.getElementById('signoffConfirmed').style.display = 'none';
-    document.getElementById('signoffFormWrap').style.display = 'block';
-    document.getElementById('soContact').value = '';
-    document.getElementById('soFirstName').value = '';
-    document.getElementById('soLastName').value = '';
-    document.getElementById('soEmail').value = '';
-    document.getElementById('soPhone').value = '';
-    document.getElementById('soInitials').value = '';
-    document.getElementById('soAwareCheckbox').checked = false;
-    document.getElementById('soFormMsg').style.display = 'none';
-    var ql = document.getElementById('signoffQuickLink');
-    ql.querySelector('.icon').textContent = '✍️';
-    ql.querySelector('.title').textContent = 'Sign Off on Upgrade';
-    ql.onclick = scrollToSignoff;
-  }, function(err) {
-    alert('Could not cancel sign off: ' + (err.message || err));
-  });
-}
-
-function sendFeedback() {
-  var type = document.getElementById('feedbackType').value;
-  var comment = document.getElementById('feedbackComment').value;
-  var statusDiv = document.getElementById('feedbackStatus');
-  var btn = document.getElementById('feedbackBtn');
-  
-  if (!comment.trim()) {
-    statusDiv.style.cssText = "display:block;background:#ffebee;color:#c62828;padding:12px 16px;border-radius:6px;font-size:13px;margin-top:14px;";
-    statusDiv.innerText = "⚠ Please enter a comment before submitting.";
-    return;
-  }
-
-  btn.disabled = true;
-  btn.textContent = "Sending...";
-  statusDiv.style.display = 'none';
-
-  var payload = {
-    action: "submitFeedback",
-    type: type,
-    comment: comment
-  };
-
-  apiPost(payload, function(response) {
-    btn.disabled = false;
-    btn.textContent = "Submit to Team";
-    statusDiv.style.display = 'block';
-    var responseMsg = typeof response === 'string' ? response : (response.result || response.error || "Submitted");
-    
-    if (responseMsg.indexOf("Error") > -1 || (response.ok === false)) {
-      statusDiv.style.cssText = "display:block;background:#ffebee;color:#c62828;padding:12px 16px;border-radius:6px;font-size:13px;margin-top:14px;";
-    } else {
-      statusDiv.style.cssText = "display:block;background:#e8f5e9;color:#2e7d32;padding:12px 16px;border-radius:6px;font-size:13px;margin-top:14px;";
-      document.getElementById('feedbackComment').value = ""; 
-      setTimeout(closeFeedbackModal, 2500);
-    }
-    statusDiv.innerText = responseMsg;
-  }, function(err) {
-    btn.disabled = false;
-    btn.textContent = "Submit to Team";
-    statusDiv.style.cssText = "display:block;background:#ffebee;color:#c62828;padding:12px 16px;border-radius:6px;font-size:13px;margin-top:14px;";
-    statusDiv.innerText = "Error: " + (err.message || err);
-  });
+  apiGet('getContactsData', function(r) { tabsLoaded.contacts = true; renderTable(r, 'contactsTableContainer'); });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
   loadHome();
 });
 </script>
-
-<!-- Subtle Build Watermark -->
-<div id="build-watermark" style="position: fixed; bottom: 8px; right: 12px; opacity: 0.35; font-size: 11px; font-family: monospace; color: #666; z-index: 9999; pointer-events: none; user-select: none;">
-  v2.1 • MasterPortal
-</div>
 </body>
 </html>
