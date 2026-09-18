@@ -345,11 +345,17 @@ function callBackendGet(action, successCb, failureCb) {
   }
   
   fetch(`${MASTER_API_URL}?portalId=${encodeURIComponent(CURRENT_SHEET_ID)}&action=${action}`)
-    .then(res => res.json())
+    .then(res => res.text())
+    .then(text => {
+      // Catch Google HTML redirects or cold-start error pages before parsing JSON
+      if (text.trim().startsWith("<")) {
+        throw new Error("Temporary Google script timeout. Please refresh.");
+      }
+      return JSON.parse(text);
+    })
     .then(res => { if (successCb) successCb(res); })
     .catch(err => { if (failureCb) failureCb(err); });
 }
-
 function callBackendPost(payload, successCb, failureCb) {
   if (!CURRENT_SHEET_ID || CURRENT_SHEET_ID.includes("<?")) {
     if (failureCb) failureCb({ message: "No portalId or customer parameter found in URL." });
@@ -436,20 +442,24 @@ function closeFeedbackModal() {
 }
 
 function loadHome() {
+  var e = document.getElementById('homeError');
+  if (e) e.style.display = 'none'; // Clear banner prior to new fetch attempt
+
   callBackendGet('getPortalData', function(r) {
     if (!r || !r.ok) {
-      var e = document.getElementById('homeError');
-      e.style.display = 'block';
-      e.textContent = 'Error loading portal data: ' + (r ? r.error : 'Unknown error');
+      if (e) {
+        e.style.display = 'block';
+        e.textContent = 'Error loading portal data: ' + (r ? r.error : 'Unknown error');
+      }
       return;
     }
-    document.getElementById('homeError').style.display = 'none';
+    if (e) e.style.display = 'none';
     document.getElementById('valGoLive').textContent = r.goLiveDate || '--';
     document.getElementById('valDays').textContent = r.daysUntilGoLive !== '' ? r.daysUntilGoLive : '--';
     document.getElementById('valTemp').textContent = r.temperature || 'Green';
     
     var card = document.getElementById('cardTemp');
-    card.className = 'stat-card temp-' + (r.temperature || 'green').toLowerCase();
+    if (card) card.className = 'stat-card temp-' + (r.temperature || 'green').toLowerCase();
     if (r.customerName) {
       document.getElementById('portalTitle').textContent = r.customerName + ' - Project Portal';
       document.title = r.customerName + ' - Project Portal';
@@ -458,28 +468,33 @@ function loadHome() {
     var pmName = r.pm || r.projectManager; 
     if (r.csm || pmName) {
       var bar = document.getElementById('csmBar');
-      bar.style.display = 'block';
-      var barText = [];
-      if(r.csm) barText.push('Customer Success Manager: ' + r.csm);
-      if(pmName) barText.push('Project Manager: ' + pmName);
-      bar.textContent = barText.join(' | ');
+      if (bar) {
+        bar.style.display = 'block';
+        var barText = [];
+        if(r.csm) barText.push('Customer Success Manager: ' + r.csm);
+        if(pmName) barText.push('Project Manager: ' + pmName);
+        bar.textContent = barText.join(' | ');
+      }
     }
 
     var announcementEl = document.getElementById('announcementText');
-    if (r.announcement && r.announcement.toString().trim() !== '') {
-      announcementEl.textContent = r.announcement;
-      announcementEl.className = 'announcement-text';
-    } else {
-      announcementEl.textContent = 'No announcements at this time.';
-      announcementEl.className = 'announcement-empty';
+    if (announcementEl) {
+      if (r.announcement && r.announcement.toString().trim() !== '') {
+        announcementEl.textContent = r.announcement;
+        announcementEl.className = 'announcement-text';
+      } else {
+        announcementEl.textContent = 'No announcements at this time.';
+        announcementEl.className = 'announcement-empty';
+      }
     }
     tabsLoaded.home = true;
     loadSignoffStatus();
     loadRecentOpenItems(); 
   }, function(err) {
-    var e = document.getElementById('homeError');
-    e.style.display = 'block';
-    e.textContent = 'Failed to load portal data: ' + err.message;
+    if (e) {
+      e.style.display = 'block';
+      e.textContent = 'Failed to load portal data: ' + err.message;
+    }
   });
 }
 
