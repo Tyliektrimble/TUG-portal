@@ -356,23 +356,6 @@ function callBackendGet(action, successCb, failureCb) {
     .then(res => { if (successCb) successCb(res); })
     .catch(err => { if (failureCb) failureCb(err); });
 }
-function callBackendPost(payload, successCb, failureCb) {
-  if (!CURRENT_SHEET_ID || CURRENT_SHEET_ID.includes("<?")) {
-    if (failureCb) failureCb({ message: "No portalId or customer parameter found in URL." });
-    return;
-  }
-
-  payload.sheetId = CURRENT_SHEET_ID;
-
-  fetch(MASTER_API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify(payload)
-  })
-    .then(res => res.json())
-    .then(res => { if (successCb) successCb(res); })
-    .catch(err => { if (failureCb) failureCb(err); });
-}
 
 function escHtml(s) {
   var d = document.createElement('div');
@@ -949,7 +932,32 @@ function cancelSignoffAction() {
     alert('Could not cancel sign off: ' + (err ? err.message : 'unknown error'));
   });
 }
+function callBackendPost(payload, successCb, failureCb) {
+  if (!CURRENT_SHEET_ID || CURRENT_SHEET_ID.includes("<?")) {
+    if (failureCb) failureCb({ message: "No portalId parameter found in URL." });
+    return;
+  }
 
+  payload.sheetId = CURRENT_SHEET_ID;
+
+  // Appending query parameters ensures 302 POST redirects retain action routing
+  var postUrl = MASTER_API_URL + "?portalId=" + encodeURIComponent(CURRENT_SHEET_ID) + "&action=" + encodeURIComponent(payload.action);
+
+  fetch(postUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(payload)
+  })
+    .then(function(res) { return res.text(); })
+    .then(function(text) {
+      if (!text || text.trim().startsWith("<")) {
+        throw new Error("Script response invalid or timed out.");
+      }
+      return JSON.parse(text);
+    })
+    .then(function(res) { if (successCb) successCb(res); })
+    .catch(function(err) { if (failureCb) failureCb(err); });
+}
 function sendFeedback() {
   var type = document.getElementById('feedbackType').value;
   var comment = document.getElementById('feedbackComment').value;
