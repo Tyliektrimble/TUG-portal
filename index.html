@@ -424,123 +424,7 @@ function closeFeedbackModal() {
   document.getElementById('feedbackModal').style.display = 'none'; 
 }
 
-function loadHome() {
-  var e = document.getElementById('homeError');
-  if (e) e.style.display = 'none'; // Clear banner prior to new fetch attempt
-
-  callBackendGet('getPortalData', function(r) {
-    if (!r || !r.ok) {
-      if (e) {
-        e.style.display = 'block';
-        e.textContent = 'Error loading portal data: ' + (r ? r.error : 'Unknown error');
-      }
-      return;
-    }
-    if (e) e.style.display = 'none';
-    document.getElementById('valGoLive').textContent = r.goLiveDate || '--';
-    document.getElementById('valDays').textContent = r.daysUntilGoLive !== '' ? r.daysUntilGoLive : '--';
-    document.getElementById('valTemp').textContent = r.temperature || 'Green';
-    
-    var card = document.getElementById('cardTemp');
-    if (card) card.className = 'stat-card temp-' + (r.temperature || 'green').toLowerCase();
-    if (r.customerName) {
-      document.getElementById('portalTitle').textContent = r.customerName + ' - Project Portal';
-      document.title = r.customerName + ' - Project Portal';
-    }
-    
-    var pmName = r.pm || r.projectManager; 
-    if (r.csm || pmName) {
-      var bar = document.getElementById('csmBar');
-      if (bar) {
-        bar.style.display = 'block';
-        var barText = [];
-        if(r.csm) barText.push('Customer Success Manager: ' + r.csm);
-        if(pmName) barText.push('Project Manager: ' + pmName);
-        bar.textContent = barText.join(' | ');
-      }
-    }
-
-    var announcementEl = document.getElementById('announcementText');
-    if (announcementEl) {
-      if (r.announcement && r.announcement.toString().trim() !== '') {
-        announcementEl.textContent = r.announcement;
-        announcementEl.className = 'announcement-text';
-      } else {
-        announcementEl.textContent = 'No announcements at this time.';
-        announcementEl.className = 'announcement-empty';
-      }
-    }
-    tabsLoaded.home = true;
-    loadSignoffStatus();
-    loadRecentOpenItems(); 
-  }, function(err) {
-    if (e) {
-      e.style.display = 'block';
-      e.textContent = 'Failed to load portal data: ' + err.message;
-    }
-  });
-}
-
-function loadRecentOpenItems() {
-  callBackendGet('getRaidData', function(result) {
-    if (!result || !result.ok || !result.rows) return;
-    
-    var statusIdx = 5; 
-    var typeIdx = 1, titleIdx = 2, prioIdx = -1;
-
-    (result.headers || []).forEach(function(h, i) {
-       var lower = h.toLowerCase();
-       if (lower === 'status' || lower === 'state') statusIdx = i;
-       if (lower === 'type') typeIdx = i;
-       if (lower === 'title') titleIdx = i;
-       if (lower === 'priority') prioIdx = i;
-    });
-    if (prioIdx === -1) prioIdx = 4; 
-
-    var openItems = result.rows.filter(function(row) {
-      var status = (row[statusIdx] || '').toString().toLowerCase();
-      return status.includes('open') || status.includes('in progress');
-    });
-
-    document.getElementById('valIssues').textContent = openItems.length;
-
-    var container = document.getElementById('recentItemsContainer');
-    var section = document.getElementById('recentItemsSection');
-
-    if (openItems.length > 0) {
-      var top5 = openItems.slice(0, 5);
-      
-      var html = '<table><thead><tr>';
-      var cols = [typeIdx, titleIdx, prioIdx, statusIdx]; 
-      cols.forEach(function(ci) {
-        if(result.headers[ci]) html += '<th>' + escHtml(result.headers[ci]) + '</th>';
-      });
-      html += '</tr></thead><tbody>';
-      
-      top5.forEach(function(row) {
-        html += '<tr>';
-        cols.forEach(function(ci) {
-           var cellRaw = (row[ci] || '').toString().trim();
-           var val = cellRaw === '' ? '-' : escHtml(cellRaw);
-           
-           if (cellRaw !== '' && (ci === statusIdx || ci === prioIdx)) { 
-             var cls = 'badge-' + cellRaw.toLowerCase().replace(/\s+/g, '-');
-             val = '<span class="badge ' + cls + '">' + val + '</span>';
-           }
-           html += '<td>' + val + '</td>';
-        });
-        html += '</tr>';
-      });
-      html += '</tbody></table>';
-      
-      container.innerHTML = html;
-      section.style.display = 'block';
-    } else {
-      section.style.display = 'none'; 
-    }
-  });
-}
-
+  
 function renderGenericTable(result, containerId) {
   var container = document.getElementById(containerId);
   if (!result || !result.ok) {
@@ -819,32 +703,147 @@ function executeSubmission(type, title, desc, priority, email, filesData) {
   });
 }
 
-function loadSignoffStatus() {
-  callBackendGet('getSignoffStatus', function(result) {
-    if (!result || !result.ok || !result.available) {
-      document.getElementById('signoffQuickLink').style.display = 'none';
-      document.getElementById('signoffSection').style.display = 'none';
+function loadHome() {
+  var e = document.getElementById('homeError');
+  if (e) e.style.display = 'none';
+
+  // 1 SINGLE FETCH CALL LOADS THE ENTIRE DASHBOARD
+  callBackendGet('getHomeBundle', function(r) {
+    if (!r || !r.ok) {
+      if (e) {
+        e.style.display = 'block';
+        e.textContent = 'Error loading portal data: ' + (r ? r.error : 'Unknown error');
+      }
       return;
     }
-    document.getElementById('signoffQuickLink').style.display = 'block';
-    document.getElementById('signoffSection').style.display = 'block';
-    if (result.completed) {
-      document.getElementById('signoffFormWrap').style.display = 'none';
-      document.getElementById('signoffConfirmed').style.display = 'block';
-      document.getElementById('signoffConfirmedMsg').textContent = 'Your sign off has been recorded. Contact your CSM if you need to make changes.';
-      var ql = document.getElementById('signoffQuickLink');
-      ql.querySelector('.icon').textContent = '❌';
-      ql.querySelector('.title').textContent = 'Cancel Sign Off';
-      ql.onclick = cancelSignoffAction;
-    } else {
-      document.getElementById('signoffFormWrap').style.display = 'block';
-      document.getElementById('signoffConfirmed').style.display = 'none';
-      var openCount = parseInt(document.getElementById('valIssues').textContent) || 0;
-      if (openCount > 0) {
-        document.getElementById('soOpenIssuesWrap').style.display = 'block';
+
+    // Populate Cards & Header
+    var p = r.portal;
+    document.getElementById('valGoLive').textContent = p.goLiveDate || '--';
+    document.getElementById('valDays').textContent = p.daysUntilGoLive !== '' ? p.daysUntilGoLive : '--';
+    document.getElementById('valTemp').textContent = p.temperature || 'Green';
+    document.getElementById('valIssues').textContent = p.openIssues !== undefined ? p.openIssues : '0';
+    
+    var card = document.getElementById('cardTemp');
+    if (card) card.className = 'stat-card temp-' + (p.temperature || 'green').toLowerCase();
+    
+    if (p.customerName) {
+      document.getElementById('portalTitle').textContent = p.customerName + ' - Project Portal';
+      document.title = p.customerName + ' - Project Portal';
+    }
+    
+    if (p.csm || p.pm) {
+      var bar = document.getElementById('csmBar');
+      if (bar) {
+        bar.style.display = 'block';
+        var barText = [];
+        if (p.csm) barText.push('Customer Success Manager: ' + p.csm);
+        if (p.pm) barText.push('Project Manager: ' + p.pm);
+        bar.textContent = barText.join(' | ');
       }
     }
+
+    var announcementEl = document.getElementById('announcementText');
+    if (announcementEl) {
+      if (p.announcement && p.announcement.toString().trim() !== '') {
+        announcementEl.textContent = p.announcement;
+        announcementEl.className = 'announcement-text';
+      } else {
+        announcementEl.textContent = 'No announcements at this time.';
+        announcementEl.className = 'announcement-empty';
+      }
+    }
+
+    // Process Recent Items from Bundled Payload
+    renderRecentItemsFromBundle(r.raid);
+
+    // Process Signoff Status from Bundled Payload
+    renderSignoffFromBundle(r.signoff);
+
+    tabsLoaded.home = true;
+  }, function(err) {
+    if (e) {
+      e.style.display = 'block';
+      e.textContent = 'Failed to load portal data: ' + err.message;
+    }
   });
+}
+
+function renderRecentItemsFromBundle(raid) {
+  if (!raid || !raid.rows || raid.rows.length === 0) return;
+  
+  var statusIdx = 5, typeIdx = 1, titleIdx = 2, prioIdx = 4;
+  (raid.headers || []).forEach(function(h, i) {
+    var lower = h.toLowerCase();
+    if (lower === 'status' || lower === 'state') statusIdx = i;
+    if (lower === 'type') typeIdx = i;
+    if (lower === 'title') titleIdx = i;
+    if (lower === 'priority') prioIdx = i;
+  });
+
+  var openItems = raid.rows.filter(function(row) {
+    var status = (row[statusIdx] || '').toString().toLowerCase();
+    return status.indexOf('open') > -1 || status.indexOf('in progress') > -1;
+  });
+
+  var container = document.getElementById('recentItemsContainer');
+  var section = document.getElementById('recentItemsSection');
+
+  if (openItems.length > 0) {
+    var top5 = openItems.slice(0, 5);
+    var html = '<table><thead><tr>';
+    var cols = [typeIdx, titleIdx, prioIdx, statusIdx]; 
+    cols.forEach(function(ci) {
+      if (raid.headers[ci]) html += '<th>' + escHtml(raid.headers[ci]) + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+    
+    top5.forEach(function(row) {
+      html += '<tr>';
+      cols.forEach(function(ci) {
+        var cellRaw = (row[ci] || '').toString().trim();
+        var val = cellRaw === '' ? '-' : escHtml(cellRaw);
+        if (cellRaw !== '' && (ci === statusIdx || ci === prioIdx)) { 
+          var cls = 'badge-' + cellRaw.toLowerCase().replace(/\s+/g, '-');
+          val = '<span class="badge ' + cls + '">' + val + '</span>';
+        }
+        html += '<td>' + val + '</td>';
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+    section.style.display = 'block';
+  } else {
+    section.style.display = 'none'; 
+  }
+}
+
+function renderSignoffFromBundle(signoff) {
+  if (!signoff || !signoff.available) {
+    document.getElementById('signoffQuickLink').style.display = 'none';
+    document.getElementById('signoffSection').style.display = 'none';
+    return;
+  }
+  document.getElementById('signoffQuickLink').style.display = 'block';
+  document.getElementById('signoffSection').style.display = 'block';
+
+  if (signoff.completed) {
+    document.getElementById('signoffFormWrap').style.display = 'none';
+    document.getElementById('signoffConfirmed').style.display = 'block';
+    document.getElementById('signoffConfirmedMsg').textContent = 'Your sign off has been recorded. Contact your CSM if you need to make changes.';
+    var ql = document.getElementById('signoffQuickLink');
+    ql.querySelector('.icon').textContent = '❌';
+    ql.querySelector('.title').textContent = 'Cancel Sign Off';
+    ql.onclick = cancelSignoffAction;
+  } else {
+    document.getElementById('signoffFormWrap').style.display = 'block';
+    document.getElementById('signoffConfirmed').style.display = 'none';
+    var openCount = parseInt(document.getElementById('valIssues').textContent) || 0;
+    if (openCount > 0) {
+      document.getElementById('soOpenIssuesWrap').style.display = 'block';
+    }
+  }
 }
 
 function scrollToSignoff() {
