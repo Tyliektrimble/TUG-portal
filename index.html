@@ -500,7 +500,13 @@ function renderRaidTable(result) {
     container.innerHTML = '<div class="error-state" style="display:block">Error loading RAID data.</div>';
     return;
   }
-  if (!result.rows || result.rows.length === 0) {
+
+  // Safely extract payload whether flat or wrapped in .raid / .data
+  var dataObj = result.raid || result.data || result;
+  var headers = dataObj.headers || [];
+  var rows = dataObj.rows || [];
+
+  if (!rows || rows.length === 0) {
     container.innerHTML = '<div style="padding:20px; color:#aaa; text-align:center; background:white; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.07);">No RAID items have been logged yet.</div>';
     return;
   }
@@ -513,8 +519,8 @@ function renderRaidTable(result) {
   var priorityColIndex = -1;
   var validCols = [];
   
-  (result.headers || []).forEach(function(h, index) {
-    var headerText = h.toString().trim();
+  headers.forEach(function(h, index) {
+    var headerText = h ? h.toString().trim() : '';
     var lower = headerText.toLowerCase();
     
     if (lower.indexOf('last modified') > -1 || lower.indexOf('anti-spam') > -1 || lower.indexOf('antispam') > -1 || headerText === '') return; 
@@ -532,12 +538,12 @@ function renderRaidTable(result) {
   html += '<table style="width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; margin: 0;">';
   html += '<thead><tr>';
   validCols.forEach(function(ci) {
-    html += '<th style="position: sticky; top: 0; z-index: 1000; background-color: #0D2B6B; color: #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.25); border: none; padding: 14px; text-align: left; font-size: 0.85rem;">' + escHtml(result.headers[ci]) + '</th>';
+    html += '<th style="position: sticky; top: 0; z-index: 1000; background-color: #0D2B6B; color: #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.25); border: none; padding: 14px; text-align: left; font-size: 0.85rem;">' + escHtml(headers[ci]) + '</th>';
   });
   html += '</tr></thead>';
   
   html += '<tbody style="background-color: #ffffff;">';
-  result.rows.forEach(function(row) {
+  rows.forEach(function(row) {
     html += '<tr>';
     validCols.forEach(function(ci) {
       var rawText = (row[ci] || '').toString().trim();
