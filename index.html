@@ -769,6 +769,13 @@ function loadHome() {
   });
 }
 
+// =========================================================
+// HELPER FUNCTION: Resolves "loadRecentOpenItems is not defined"
+// =========================================================
+function loadRecentOpenItems() {
+  loadHome();
+}
+
 function renderRecentItemsFromBundle(raid) {
   if (!raid || !raid.rows || raid.rows.length === 0) return;
   
