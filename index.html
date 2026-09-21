@@ -502,16 +502,38 @@ function renderRaidTable(result) {
 
   if (!result || !result.ok) {
     var d = document.getElementById('raidDiag');
-    d.style.display = 'block';
-    d.textContent = 'Error: ' + ((result && result.error) ? result.error : 'Unknown');
+    if (d) {
+      d.style.display = 'block';
+      d.textContent = 'Error: ' + ((result && result.error) ? result.error : 'Unknown');
+    }
     container.innerHTML = '<div class="error-state" style="display:block">Error loading RAID data.</div>';
     return;
   }
 
-  // Safely extract payload whether flat or wrapped in .raid / .data
-  var dataObj = result.raid || result.data || result;
-  var headers = dataObj.headers || [];
-  var rows = dataObj.rows || [];
+  var headers = [];
+  var rows = [];
+
+  // 1. Handle Array of Objects (result.items)
+  if (result.items && Array.isArray(result.items)) {
+    if (result.items.length === 0) {
+      container.innerHTML = '<div style="padding:20px; color:#aaa; text-align:center; background:white; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.07);">No RAID items have been logged yet.</div>';
+      return;
+    }
+    var rawKeys = Object.keys(result.items[0]);
+    // Format camelCase keys to readable Title Case headers (e.g. caseNumber -> Case Number)
+    headers = rawKeys.map(function(k) {
+      return k.replace(/([A-Z])/g, ' $1').replace(/^./, function(str){ return str.toUpperCase(); });
+    });
+    rows = result.items.map(function(item) {
+      return rawKeys.map(function(k) { return item[k]; });
+    });
+  } 
+  // 2. Handle Standard Rows / Headers
+  else {
+    var dataObj = result.raid || result.data || result;
+    headers = dataObj.headers || [];
+    rows = dataObj.rows || [];
+  }
 
   if (!rows || rows.length === 0) {
     container.innerHTML = '<div style="padding:20px; color:#aaa; text-align:center; background:white; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.07);">No RAID items have been logged yet.</div>';
@@ -589,7 +611,6 @@ function renderRaidTable(result) {
   html += '</tbody></table></div>';
   container.innerHTML = html;
 }
-
 function submitRaid(event) {
   event.preventDefault();
   var type     = document.getElementById('raidType').value;
