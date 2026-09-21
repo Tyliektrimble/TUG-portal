@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Customer Portal Request Form</title>
+    <style>
+      :root {
+        --trimble-yellow: #F2A900;
+        --trimble-blue: #00263E;
+        --trimble-blue-light: #005A9C;
+        --bg-gray: #F4F6F8;
+        --card-border: #E1E6EB;
+      }
+
+      body { 
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+        background-color: var(--bg-gray); 
+        margin: 0; 
+        padding: 40px 20px; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        min-height: 100vh;
+        box-sizing: border-box;
+      }
+
+      .card-container {
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        border-top: 6px solid var(--trimble-yellow);
+        width: 100%;
+        max-width: 700px;
+        padding: 30px 35px;
+      }
+
+      h2 { color: var(--trimble-blue); margin-top: 0; margin-bottom: 8px; }
+      p.subtitle { color: #555; margin-bottom: 25px; font-size: 0.95rem; }
+
+      .system-selection-container {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 25px;
+      }
+
+      .system-btn {
+        flex: 1;
+        padding: 15px;
+        background-color: #FAFAFA;
+        color: var(--trimble-blue);
+        border: 2px solid var(--card-border);
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .system-btn:hover {
+        border-color: var(--trimble-blue-light);
+        background-color: #F0F4F8;
+      }
+
+      .system-btn.active {
+        background-color: var(--trimble-blue);
+        color: white;
+        border-color: var(--trimble-blue);
+      }
+
+      .form-section { margin-bottom: 18px; }
+      label { font-weight: 600; display: block; margin-bottom: 6px; color: var(--trimble-blue); }
+      
+      input[type="text"], input[type="email"], input[type="date"], select, textarea { 
+        width: 100%; 
+        padding: 10px; 
+        box-sizing: border-box; 
+        margin-bottom: 10px; 
+        border: 1px solid #CCC; 
+        border-radius: 4px;
+        font-size: 14px;
+      }
+
+      input[type="text"]:focus, input[type="email"]:focus, input[type="date"]:focus, select:focus, textarea:focus {
+        border-color: var(--trimble-blue-light);
+        outline: none;
+      }
+
+      .required { color: #D93025; }
+
+      .inline-checkbox-label {
+        font-weight: normal;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+      }
+
+      .search-box {
+        margin-bottom: 8px;
+        border-color: var(--trimble-blue-light);
+      }
+
+      .checkbox-group {
+        max-height: 350px;
+        overflow-y: auto;
+        border: 1px solid var(--card-border);
+        padding: 12px;
+        border-radius: 4px;
+        background: #FAFAFA;
+        margin-bottom: 15px;
+      }
+
+      .category-block { margin-bottom: 18px; }
+      .category-title { font-weight: bold; margin-top: 5px; color: var(--trimble-blue); border-bottom: 2px solid var(--trimble-yellow); padding-bottom: 3px; font-size: 0.95rem; }
+      .checkbox-item { font-weight: normal; display: block; margin: 6px 0; color: #333; cursor: pointer; font-size: 0.9rem; }
+      .hidden { display: none !important; }
+
+      .submit-btn { 
+        background-color: var(--trimble-yellow); 
+        color: var(--trimble-blue); 
+        font-weight: bold;
+        padding: 12px 20px; 
+        border: none; 
+        border-radius: 4px; 
+        cursor: pointer; 
+        font-size: 15px; 
+        width: 100%;
+        margin-top: 10px;
+        transition: background-color 0.2s ease;
+      }
+
+      .submit-btn:hover { background-color: #D99700; }
+      #status { margin-top: 15px; font-weight: bold; text-align: center; font-size: 1rem; }
+    </style>
+  </head>
+  <body>
+
+    <div class="card-container">
+      <h2>Customer Portal Request Form</h2>
+      <p class="subtitle">Complete this form to request a new customer project portal. Your request will be processed automatically.</p>
+
+      <label>Select System Type: <span class="required">*</span></label>
+      <div class="system-selection-container">
+        <button type="button" class="system-btn" id="btn-truckmate" onclick="selectSystem('truckmate', this)">TruckMate</button>
+        <button type="button" class="system-btn" id="btn-tmwsuite" onclick="selectSystem('tmwsuite', this)">TMWSuite</button>
+      </div>
+
+      <div id="commonFields" class="hidden">
+        
+        <div class="form-section">
+          <label for="submitter">Submitter: <span class="required">*</span></label>
+          <select id="submitter" onchange="handleSubmitterSelectChange()" required>
+            <option value="">-- Select Submitter --</option>
+            <option value="Madhan Chakravarthy J">Madhan Chakravarthy J</option>
+            <option value="Tyliek Clark">Tyliek Clark</option>
+            <option value="__NEW__">+ Add New Submitter</option>
+          </select>
+        </div>
+
+        <div class="form-section hidden" id="newSubmitterGroup">
+          <label for="newSubmitterInput">Enter New Submitter Name: <span class="required">*</span></label>
+          <input type="text" id="newSubmitterInput" placeholder="e.g. Jane Doe">
+        </div>
+
+        <!-- SEARCHABLE CUSTOMER DROPDOWN -->
+        <div class="form-section">
+          <label for="customerName">Customer Name: <span class="required">*</span></label>
+          <input type="text" id="customerSearch" class="search-box" placeholder="🔎 Type to search customer name..." onkeyup="filterCustomerDropdown()">
+          <select id="customerName" onchange="handleCustomerSelectChange()" required size="5" style="height: 120px;">
+            <option value="">-- Choose System First --</option>
+          </select>
+        </div>
+
+        <div class="form-section hidden" id="newCustomerGroup">
+          <label for="newCustomerInput">Enter New Customer Name: <span class="required">*</span></label>
+          <input type="text" id="newCustomerInput" placeholder="e.g. Acme Transportation Inc.">
+        </div>
+
+        <div class="form-section">
+          <label for="csm">Customer Success Manager:</label>
+          <input type="text" id="csm" list="csmOptions" placeholder="Search or select CSM...">
+          <datalist id="csmOptions">
+            <option value="Adam Adlerman"></option>
+            <option value="Brad Klammer"></option>
+            <option value="Bre Broadney"></option>
+            <option value="Brooke Meneely"></option>
+            <option value="Chris Dearmon"></option>
+            <option value="Cindy Mullins"></option>
+            <option value="Cliff Brown"></option>
+            <option value="Cristina Oneill"></option>
+            <option value="Elise Fournet"></option>
+            <option value="Ellie Shaline"></option>
+            <option value="Eric Clouse"></option>
+            <option value="Ethan Chase"></option>
+            <option value="Gaby Cifuentes"></option>
+            <option value="Jesse Meeks"></option>
+            <option value="Joseph Villegas"></option>
+            <option value="Josh Gaudioso"></option>
+            <option value="Kevin Drouin"></option>
+            <option value="Knox Flynt"></option>
+            <option value="Kristine Fumero"></option>
+            <option value="Magda Fox"></option>
+            <option value="Richard Charette"></option>
+            <option value="Rick Hall"></option>
+            <option value="Tyler Tomlinson"></option>
+          </datalist>
+        </div>
+      </div>
+
+      <form id="truckmateForm" class="hidden" onsubmit="submitTruckMate(event)">
+        <div class="form-section">
+          <label for="testUpgradeDateTm">Test Upgrade Date: <span class="required">*</span></label>
+          <input type="date" id="testUpgradeDateTm" required>
+        </div>
+
+        <div class="form-section">
+          <label for="goLiveDate">Go-Live Date:</label>
+          <input type="date" id="goLiveDate">
+        </div>
+
+        <div class="form-section">
+          <label for="tmNotes">Additional Request Notes:</label>
+          <textarea id="tmNotes" rows="3"></textarea>
+        </div>
+
+        <button type="submit" class="submit-btn">Submit TruckMate Request</button>
+      </form>
+
+      <form id="tmwSuiteForm" class="hidden" onsubmit="submitTMWSuite(event)">
+        
+        <div class="form-section">
+          <label class="inline-checkbox-label">
+            <input type="checkbox" id="dbRefreshCheckbox" onchange="toggleDbRefreshFields()">
+            <strong>DB Refresh Required?</strong>
+          </label>
+        </div>
+
+        <div class="form-section hidden" id="dbRefreshDateContainer">
+          <label for="dbRefreshDate">DB Refresh Date: <span class="required">*</span></label>
+          <input type="date" id="dbRefreshDate">
+        </div>
+
+        <div class="form-section">
+          <label for="discoveryCallDate">Discovery Call Date:</label>
+          <input type="date" id="discoveryCallDate">
+        </div>
+
+        <div class="form-section">
+          <label class="inline-checkbox-label">
+            <input type="checkbox" id="acceleratorUpgradeCheckbox" onchange="toggleAcceleratorFields()">
+            <strong>Accelerator Upgrade Required?</strong>
+          </label>
+        </div>
+
+        <div class="form-section hidden" id="testUpgradeDateContainerTmw">
+          <label for="testUpgradeDateTmw">Test Upgrade Date: <span class="required">*</span></label>
+          <input type="date" id="testUpgradeDateTmw">
+        </div>
+
+        <div class="form-section">
+          <label for="projectedUatDate">Projected UAT Call Date:</label>
+          <input type="date" id="projectedUatDate">
+        </div>
+
+        <div class="form-section">
+          <label for="productSearch">Search TMWSuite Products:</label>
+          <input type="text" id="productSearch" class="search-box" placeholder="Type words to search (e.g. opt trip, web estat)..." onkeyup="filterProducts()">
+        </div>
+
+        <label>Select Required Products / Modules (Multi-Select):</label>
+        
+        <div class="checkbox-group" id="productChecklist">
+          <div class="category-block">
+            <div class="category-title">Core TMWSuite Products</div>
+            <label class="checkbox-item"><input type="checkbox" name="tmwProduct" value="TMWSuite / TMW Suite"> TMWSuite / TMW Suite</label>
+            <label class="checkbox-item"><input type="checkbox" name="tmwProduct" value="TMWSuite PowerBuilder / NSuite core"> TMWSuite PowerBuilder / NSuite core (Powerbuilder)</label>
+            <label class="checkbox-item"><input type="checkbox" name="tmwProduct" value="TMWSuite add-ins"> TMWSuite add-ins</label>
+            <label class="checkbox-item"><input type="checkbox" name="tmwProduct" value="Suite-SQL database"> Suite-SQL database</label>
+            <label class="checkbox-item"><input type="checkbox" name="tmwProduct" value="TMW .NET Operations"> TMW .NET Operations</label>
+            <label class="checkbox-item"><input type="checkbox" name="tmwProduct" value="TMW .NET Back Office"> TMW .NET Back Office</label>
+            <label class="checkbox-item"><input type="checkbox" name="tmwProduct" value="Fuel TMS"> Fuel TMS / TMW Fuel Dispatch</label>
+            <label class="checkbox-item"><input type="checkbox" name="tmwProduct" value="Accounting"> Accounting</label>
+            <label class="checkbox-item"><input type="checkbox" name="tmwProduct" value="TMW Web Products / Web Enterprise"> TMW Web Products / Web Enterprise</label>
+          </div>
+
+          <div class="category-block">
+            <div class="category-title">Standard Services</div>
+            <label class="checkbox-item"><input type="checkbox" name="tmwProduct" value="Installation"> Installation</label>
+            <label class="checkbox-item"><input type="checkbox" name="tmwProduct" value="Master File Import"> Master File Import</label>
+            <label class="checkbox-item"><input type="checkbox" name="tmwProduct" value="Implementation / consulting services"> Implementation / consulting services</label>
+            <label class="checkbox-item"><input type="checkbox" name="tmwProduct" value="Database / DBA services"> Database / DBA services</label>
+            <label class="checkbox-item"><input type="checkbox" name="tmwProduct" value="Upgrade services"> Upgrade services</label>
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn">Submit TMWSuite Request</button>
+      </form>
+
+      <div id="status"></div>
+    </div>
+
+    <script>
+      const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyzWfKsop1G29CLbComLmOQZnmcVlSpclt9mrg2pXGbUWC455RqytyarEst-RmcG10CnA/exec";
+      const defaultTruckmateCustomers = [
+        "1-Bridge Logistics Corp", "3PL Links/ SourceOne", "2801124 Canada Inc DBA Excel Transportation", "1000927605 Ontario Inc.", 
+        "ABEX Transportation LLC", "Ace World Wide", "Aggressive Transport Ltd.", "Airtime Express", "Ajit Transport, Inc.", 
+        "Al-Amin Brothers Transportation", "American Logistics Services", "Antonini Enterprises, LLC", "Autozone Texas LLC", 
+        "B2B Transportation", "Bellmont Cabinet Co.", "Biewer Logistics LLC", "Blakeman Transportation, Inc.", "BMD Transport", 
+        "Brimich Logistics Inc.", "Buchheit Trucking Service, INC", "Budreck Truck Lines", "Buffalo Fuel Corp.", "Bulk Carriers PEI 2", 
+        "California Freight Sales", "Canada Cartage System Limited Partnership (CPX)", "Capurro Trucking", "Caregan Transport", 
+        "Carlile Transportation Systems LLC", "Carmen Transportation Group", "ChemLogix", "Chriscott Logistics Inc", 
+        "Clark Reefer Lines Ltd", "Coda Group", "Cole International", "Conrad Transport LTD", "Contour Logistics", 
+        "Cordell Transportation Co, LLC", "Custom Transport", "Day and Ross", "Denney Transport", "Deol Road Carrier Ltd.", 
+        "Destiny Transport", "Dickey Transport Inc", "Divine Enterprises", "Don Anderson Haulage", "Dot-Line", "DSV Road Transport, Inc", 
+        "ECS Ventures LLC", "Euro Link Logistic", "Excel Cargo Services, Inc. - DBA CBX Global", "Expediter Services", "Fastex Transport", 
+        "Fox Transportation", "Freight Forwarding Group", "Fuze Logistics Services Inc.", "G&C Food Distributors & Brokers", "Gan Trans", 
+        "Gateway Distribution", "Ghost Transportation Services", "Gilbert M Rioux & Fils Ltd", "Groupe Guilbault", "HAP Enterprises Ltd 7", 
+        "Hillsboro Transportation", "Homiak Transport", "Honolulu Freight Service", "Hot-Line Freight System, Inc", "Howmet Transportation Services", 
+        "Independent Dispatch Inc", "Intermodal Bridge Trans", "JA Steer Company", "JIT Transportation", "JL Rothrock", "K-Way Express, Inc", 
+        "Kingsley Trucking", "KN Logistics Solutions", "Landtran Systems Inc", "Lantrax Logistics Ltd", "Laredo Transport and Storage", 
+        "LFI Logistics LLC", "Linear Logistics", "Loblaws", "Logistec Marine Services ULC", "Logistic Partners Inc (Plaisted Companies, Inc)", 
+        "Los Angeles Unified SD", "LTL Pro's", "Matrix Expedited Service", "McClay Group", "McDonald Companies", "MTL, Inc.", 
+        "Multi Freight Express", "National Delivery Systems", "National Logistics Services (2006) Inc", "Norco Corporation", 
+        "Onfreight Logistics", "Orbis Express", "Ottery Transportation Inc.", "Pace Air Freight", "Pacific Coast Distribution", 
+        "Panella Trucking", "Papason Trucking ltd", "Parkland Courier Services", "Pero Transport", "Pinch Transport", "Pinnacle Freight Systems", 
+        "Pinnacle Transport", "Pipco Transportation Inc", "Pluto Transport, Inc", "Port Logistic Group", "Prochnow Transport", "QRC Logistics", 
+        "Reliable Logistics", "Rich Doss, Inc.", "Rig Logistics", "Riverbend Freight Service", "Road Scholar Transport, Inc", 
+        "Roadshow Services, Inc", "Rock Transfer & Storage", "Rogue Specialty Transport", "RPM Consolidated Services Inc", "RSA Transport", 
+        "RSB Logistics", "Ryan Transportation", "Rye Gentry Trucking", "S&J Transportation Inc.", "Saddle Creek", "Safeway Trucking Corporation", 
+        "Shadow Lines", "Shoreland Transport Inc.", "Skagit Transportation", "Source Logistics, Inc.", "Southern Pride", "Southern Refrigerated Transport", 
+        "Speed Global Services", "Spring Logistics", "SRT Logistics", "Stage Call Corporation", "Steed Standard Transport", "SteelPro", 
+        "STG Logistics", "Sylvite Agri-Services Ltd. DBA Sylvite Transportation","Test Customer", "T.H. Ryan Cartage Co", "T.M. Transport, Inc", 
+        "T.S.L. Transportation", "Tank Carrier Services", "TAS Refrigerated Distribution Inc", "TCB Transportation", "Teams Transport", 
+        "THD Inc", "TJL Transport", "Torc Robotics", "Total Logistics Controls, Inc", "Trader Joe's Inc.", "Tradewinds Transportation", 
+        "Traffix Transportation", "Trans99 Logistics", "Transport Berniere", "Triangle Warehouse", "Truck Transfer", "TuSimple", 
+        "V. Boutin Express Inc.", "Valley Express LLC", "VersaCold Logistics Services GP Limited", "Verspeeten Cartage", "Vito Trucking", 
+        "VMW Express", "Volvo Autonomous Solutions", "Vortex Freight Systems", "Western Pacific Transport Ltd - CAN", "Wildwood Transport, Inc.", 
+        "Wille Transport Inc", "Wm De Jong Enterprises Inc", "WMB Holdings", "Yellow Dog Trucking", "Zavcor Trucking Limited", "Zip Xpress Inc"
+      ];
+
+      const defaultTmwsuiteCustomers = [
+        "Alpha Transport Inc", "AmeriGas", "Ashley Furniture", "Asphalt Express, LLC", "Autumn Transport, Inc", "AWL Transport", 
+        "B&T Express", "Badger Federal Services", "Barney Trucking, Inc", "Baytex Energy", "Beck Suppliers, Inc", "Bestway Express", 
+        "Britton Industries", "Brookshire Grocery Co", "Cactus Transport, Inc", "Chevron Technical Center, a division of Chevron U.S.A. Inc.", 
+        "Commercelink Logistics", "Cox Petroleum Transport", "Crowley Maritime Corporation", "Crowley Maritime Corporation 3", "Cumberland Farms", 
+        "Dist-Trans Co. LLC", "Dynamic Liquid Logistics", "Ecklund Logistics", "Evans Delivery Co. Inc.", "F.L.A.S.H Inc.", 
+        "Federated Co-operatives Limited", "Ferrous Processes & Trading Co", "FMC Transport Inc", "Freehold Cartage", "Freight Exchange of North America", 
+        "Frontier Tank Lines, Inc.", "Frontier Transport", "Fuel Delivery Services", "GenOx Transportation Inc", "Georgia Southern Transportation", 
+        "Greater Omaha Express", "Green Products", "Groendyke Transport, Inc", "Hittman Transport Services", "Hoffman Transport Inc", 
+        "Hoffman Transportation LLC", "Hogan Transport Inc", "Illini State Logistics", "Integrity Gas Services", "Inter-Coastal", 
+        "Interchange Group, Inc", "Interstate Freight Services", "Irving Oil Limited", "Janco LTD", "Jay Transport", "JBC, Inc.", 
+        "JBS Carriers", "Jeff Foster Trucking", "Jones Logistics LLC", "Keen Transport, Inc.", "Keith Titus Corp", "KL Harring", 
+        "Klapec Trucking Co.", "Lawrence Transportation", "Lexmar Distribution Inc", "Lily Transportation", "Logistics Services", 
+        "Logix Transportation", "LP Transportation", "M&J Carriers", "M&P Transport", "M&W Transportation", "Marathon Petroleum", 
+        "Martin Transport Inc", "Mclane Company", "Meyer Brothers Trucking", "Morristown Driver Services", "Narl Marketing Limited Partnership", 
+        "National Transit Corporation", "Neat Companies", "New South Express", "Newman Carriers, Inc.", "Northeast Transport Inc", 
+        "OFC Development Corp", "Ozark Trucking", "Park Communications, LLC dba Longistics", "Partners Bulk Logistics", "Penn Tank Lines", 
+        "Perfect Pallets", "Pillen Family Farms", "Powersource Transportation", "Prairie Line", "Productive Transportation Services", 
+        "Quality Drive Away", "R&R Transportation", "RBX", "Regency Transportation", "Rocky Mountain Crude Oil", "S.M. Gallivan, LLC.", 
+        "Schiber Truck Company, Inc.", "Shaw Industries", "Solstice Advanced Materials US Inc.", "Space City Services", "SPC Transport", 
+        "Speedway LLC", "Sprint Transport, llc", "SS Skikos", "Stabilis GDS Inc.", "Standard Transportation Services", "Stans's Inc.", 
+        "Stone Transport", "Sully Transport, Inc.", "Superload Transport (SaaS)", "T. Marzetti Company", "Tantara Transportation", 
+        "Tarter Farms", "Tidewater Transit Co, Inc.", "Tiger Lines", "Tracso LLC", "Transport Logistics", "TRD Trucking", "Truck One", 
+        "Tucker Freight Lines", "United Petroleum", "USA Truck Inc.", "USALCO", "Usher Transport", "Wayne W Sell Corporation", 
+        "Wynne Transport Service, Inc", "YMX Logistics, Inc", "Zeller Transportation"
+      ];
+
+      let customerData = {
+        truckmate: defaultTruckmateCustomers,
+        tmwsuite: defaultTmwsuiteCustomers
+      };
+
+      let activeSystem = "";
+
+      document.addEventListener("DOMContentLoaded", function() {
+  fetch(APPS_SCRIPT_URL + "?action=getCustomers")
+    .then(res => res.json())
+    .then(data => {
+      if (data) {
+        if (data.truckmate && data.truckmate.length > 0) {
+          customerData.truckmate = Array.from(new Set([...defaultTruckmateCustomers, ...data.truckmate])).sort();
+        }
+        if (data.tmwsuite && data.tmwsuite.length > 0) {
+          customerData.tmwsuite = Array.from(new Set([...defaultTmwsuiteCustomers, ...data.tmwsuite])).sort();
+        }
+        if (activeSystem) populateCustomerDropdown(activeSystem);
+      }
+    })
+    .catch(err => console.error("Error loading customer list:", err));
+});
+
+      function selectSystem(selection, btnElement) {
+        activeSystem = selection;
+
+        document.querySelectorAll('.system-btn').forEach(btn => btn.classList.remove('active'));
+        if (btnElement) btnElement.classList.add('active');
+
+        var commonFields = document.getElementById('commonFields');
+        var tmForm = document.getElementById('truckmateForm');
+        var tmwForm = document.getElementById('tmwSuiteForm');
+        
+        document.getElementById('status').innerText = "";
+        
+        document.getElementById('newCustomerGroup').classList.add('hidden');
+        document.getElementById('newCustomerInput').value = "";
+        document.getElementById('newSubmitterGroup').classList.add('hidden');
+        document.getElementById('newSubmitterInput').value = "";
+        document.getElementById('submitter').value = "";
+        document.getElementById('customerSearch').value = "";
+
+        populateCustomerDropdown(selection);
+
+        if (selection === 'truckmate') {
+          commonFields.classList.remove('hidden');
+          tmForm.classList.remove('hidden');
+          tmwForm.classList.add('hidden');
+        } else if (selection === 'tmwsuite') {
+          commonFields.classList.remove('hidden');
+          tmwForm.classList.remove('hidden');
+          tmForm.classList.add('hidden');
+        }
+      }
+
+      function populateCustomerDropdown(system) {
+        var customerDropdown = document.getElementById('customerName');
+        customerDropdown.innerHTML = '<option value="">-- Select Customer --</option><option value="__NEW__">+ Add New Customer</option>';
+
+        let list = (system === 'truckmate') ? customerData.truckmate : customerData.tmwsuite;
+        list.forEach(c => {
+          customerDropdown.innerHTML += `<option value="${c}">${c}</option>`;
+        });
+      }
+
+      // REAL-TIME SEARCH FILTER FOR CUSTOMER DROPDOWN
+      function filterCustomerDropdown() {
+        var filter = document.getElementById('customerSearch').value.toLowerCase().trim();
+        var select = document.getElementById('customerName');
+        var options = select.getElementsByTagName('option');
+
+        for (var i = 0; i < options.length; i++) {
+          var txt = options[i].text.toLowerCase();
+          if (options[i].value === '' || options[i].value === '__NEW__') {
+            options[i].style.display = "";
+          } else {
+            options[i].style.display = (txt.indexOf(filter) > -1) ? "" : "none";
+          }
+        }
+      }
+
+      function handleSubmitterSelectChange() {
+        var selectVal = document.getElementById('submitter').value;
+        var newGroup = document.getElementById('newSubmitterGroup');
+        var newInput = document.getElementById('newSubmitterInput');
+
+        if (selectVal === '__NEW__') {
+          newGroup.classList.remove('hidden');
+          newInput.required = true;
+        } else {
+          newGroup.classList.add('hidden');
+          newInput.required = false;
+          newInput.value = "";
+        }
+      }
+
+      function handleCustomerSelectChange() {
+        var selectVal = document.getElementById('customerName').value;
+        var newCustGroup = document.getElementById('newCustomerGroup');
+        var newCustInput = document.getElementById('newCustomerInput');
+
+        if (selectVal === '__NEW__') {
+          newCustGroup.classList.remove('hidden');
+          newCustInput.required = true;
+        } else {
+          newCustGroup.classList.add('hidden');
+          newCustInput.required = false;
+          newCustInput.value = "";
+        }
+      }
+
+      function toggleDbRefreshFields() {
+        var isChecked = document.getElementById('dbRefreshCheckbox').checked;
+        var dateContainer = document.getElementById('dbRefreshDateContainer');
+        var dateInput = document.getElementById('dbRefreshDate');
+
+        if (isChecked) {
+          dateContainer.classList.remove('hidden');
+          dateInput.required = true;
+        } else {
+          dateContainer.classList.add('hidden');
+          dateInput.required = false;
+          dateInput.value = "";
+        }
+      }
+
+      function toggleAcceleratorFields() {
+        var isChecked = document.getElementById('acceleratorUpgradeCheckbox').checked;
+        var dateContainer = document.getElementById('testUpgradeDateContainerTmw');
+        var dateInput = document.getElementById('testUpgradeDateTmw');
+
+        if (isChecked) {
+          dateContainer.classList.remove('hidden');
+          dateInput.required = true;
+        } else {
+          dateContainer.classList.add('hidden');
+          dateInput.required = false;
+          dateInput.value = "";
+        }
+      }
+
+      function filterProducts() {
+        var rawInput = document.getElementById('productSearch').value.toLowerCase().trim();
+        var terms = rawInput.split(/\s+/).filter(Boolean);
+        
+        var items = document.querySelectorAll('#productChecklist .checkbox-item');
+        var blocks = document.querySelectorAll('#productChecklist .category-block');
+
+        items.forEach(function(item) {
+          var text = (item.textContent || item.innerText).toLowerCase();
+          var matchesAllTerms = terms.every(function(term) {
+            return text.indexOf(term) > -1;
+          });
+          item.style.display = matchesAllTerms ? "" : "none";
+        });
+
+        blocks.forEach(function(block) {
+          var visibleItems = block.querySelectorAll('.checkbox-item:not([style*="display: none"])');
+          block.style.display = (visibleItems.length === 0) ? "none" : "";
+        });
+      }
+
+      function getCommonData() {
+        var customerSelect = document.getElementById('customerName').value;
+        var finalCustomerName = (customerSelect === '__NEW__') 
+          ? document.getElementById('newCustomerInput').value.trim() 
+          : customerSelect;
+
+        var submitterSelect = document.getElementById('submitter').value;
+        var finalSubmitterName = (submitterSelect === '__NEW__') 
+          ? document.getElementById('newSubmitterInput').value.trim() 
+          : submitterSelect;
+
+        return {
+          submitter: finalSubmitterName,
+          customerName: finalCustomerName,
+          csm: document.getElementById('csm').value
+        };
+      }
+
+      function resetFormUI() {
+        activeSystem = "";
+        document.querySelectorAll('.system-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('commonFields').classList.add('hidden');
+        document.getElementById('truckmateForm').classList.add('hidden');
+        document.getElementById('tmwSuiteForm').classList.add('hidden');
+      }
+
+      function submitTruckMate(e) {
+        e.preventDefault();
+        var statusDiv = document.getElementById('status');
+        statusDiv.style.color = "blue";
+        statusDiv.innerText = "Submitting TruckMate request...";
+
+        var data = getCommonData();
+        data.testUpgradeDate = document.getElementById('testUpgradeDateTm').value;
+        data.goLiveDate = document.getElementById('goLiveDate').value;
+        data.notes = document.getElementById('tmNotes').value;
+
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler(res => {
+              statusDiv.style.color = "green";
+              statusDiv.innerText = res;
+              document.getElementById('truckmateForm').reset();
+              resetFormUI();
+            })
+            .withFailureHandler(err => {
+              statusDiv.style.color = "red";
+              statusDiv.innerText = "Error: " + err;
+            })
+            .processTruckMateForm(data);
+        } else {
+          fetch(APPS_SCRIPT_URL, {
+  method: "POST",
+  headers: { "Content-Type": "text/plain;charset=utf-8" },
+  body: JSON.stringify({ action: "processTruckMateForm", data: data }) // or processTMWSuiteForm
+})
+.then(res => res.json())
+.then(res => {
+  statusDiv.style.color = "green";
+  statusDiv.innerText = typeof res === 'string' ? res : (res.result || "Success");
+  // Reset form UI logic...
+})
+.catch(err => {
+  statusDiv.style.color = "red";
+  statusDiv.innerText = "Error: " + err.message;
+});
+        }
+      }
+
+      function submitTMWSuite(e) {
+        e.preventDefault();
+        var statusDiv = document.getElementById('status');
+        statusDiv.style.color = "blue";
+        statusDiv.innerText = "Submitting TMWSuite request...";
+
+        var data = getCommonData();
+        data.dbRefresh = document.getElementById('dbRefreshCheckbox').checked ? "Yes" : "No";
+        data.dbRefreshDate = document.getElementById('dbRefreshDate').value;
+        data.discoveryCallDate = document.getElementById('discoveryCallDate').value;
+        data.acceleratorUpgrade = document.getElementById('acceleratorUpgradeCheckbox').checked ? "Yes" : "No";
+        data.testUpgradeDateTmw = document.getElementById('testUpgradeDateTmw').value;
+        data.projectedUatDate = document.getElementById('projectedUatDate').value;
+
+        var selectedProducts = [];
+        var checkboxes = document.querySelectorAll('input[name="tmwProduct"]:checked');
+        checkboxes.forEach((cb) => { selectedProducts.push(cb.value); });
+        data.selectedProducts = selectedProducts;
+
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler(res => {
+              statusDiv.style.color = "green";
+              statusDiv.innerText = res;
+              document.getElementById('tmwSuiteForm').reset();
+              toggleDbRefreshFields();
+              toggleAcceleratorFields();
+              resetFormUI();
+            })
+            .withFailureHandler(err => {
+              statusDiv.style.color = "red";
+              statusDiv.innerText = "Error: " + err;
+            })
+            .processTMWSuiteForm(data);
+        } else {
+          fetch(APPS_SCRIPT_URL, {
+  method: "POST",
+  headers: { "Content-Type": "text/plain;charset=utf-8" },
+  body: JSON.stringify({ action: "processTruckMateForm", data: data }) // or processTMWSuiteForm
+})
+.then(res => res.json())
+.then(res => {
+  statusDiv.style.color = "green";
+  statusDiv.innerText = typeof res === 'string' ? res : (res.result || "Success");
+  // Reset form UI logic...
+})
+.catch(err => {
+  statusDiv.style.color = "red";
+  statusDiv.innerText = "Error: " + err.message;
+});
+        }
+      }
+    </script>
+
+    <div style="position: fixed; bottom: 5px; right: 10px; font-size: 10px; color: #d32f2f; font-family: monospace; z-index: 9999;">
+      DEV v.TUG.9.21.26
+    </div>
+  </body>
+</html>
