@@ -473,17 +473,24 @@ function loadContacts() {
 
 function loadRaid(forceReload) {
   if (tabsLoaded.raid && !forceReload) return;
-  document.getElementById('raidTableContainer').innerHTML = '<div class="loading">Loading RAID data...</div>';
   
+  var diag = document.getElementById('raidDiag');
+  var container = document.getElementById('raidTableContainer');
+  
+  diag.style.display = 'block';
+  diag.textContent = '🔍 Contacting backend for RAID log...';
+  container.innerHTML = '<div class="loading">Loading RAID data...</div>';
+
   callBackendGet('getRaidData', function(result) {
+    console.log('getRaidData response:', result);
+    diag.textContent = 'DEBUG PAYLOAD:\n' + JSON.stringify(result, null, 2);
+    
     tabsLoaded.raid = true;
     renderRaidTable(result);
   }, function(err) {
     tabsLoaded.raid = false;
-    var d = document.getElementById('raidDiag');
-    d.style.display = 'block';
-    d.textContent = 'Error: ' + err.message;
-    document.getElementById('raidTableContainer').innerHTML = '<div class="error-state" style="display:block">Failed to load RAID data.</div>';
+    diag.textContent = '❌ FETCH ERROR: ' + err.message;
+    container.innerHTML = '<div class="error-state" style="display:block">Failed to load RAID data.</div>';
   });
 }
 
