@@ -753,15 +753,25 @@ function loadHome() {
       return;
     }
 
+    // Fallback to 'r' directly if 'r.portal' is undefined
+    var p = r.portal || r;
+
+    // Safely extract properties regardless of key naming
+    var goLive = p.goLiveDate || p.goLive || '--';
+    var daysUntil = (p.daysUntilGoLive !== undefined && p.daysUntilGoLive !== '') 
+      ? p.daysUntilGoLive 
+      : (p.daysUntil !== undefined ? p.daysUntil : '--');
+    var temp = p.temperature || p.temp || 'Green';
+    var openIssues = p.openIssues !== undefined ? p.openIssues : '0';
+
     // Populate Cards & Header
-    var p = r.portal;
-    document.getElementById('valGoLive').textContent = p.goLiveDate || '--';
-    document.getElementById('valDays').textContent = p.daysUntilGoLive !== '' ? p.daysUntilGoLive : '--';
-    document.getElementById('valTemp').textContent = p.temperature || 'Green';
-    document.getElementById('valIssues').textContent = p.openIssues !== undefined ? p.openIssues : '0';
+    document.getElementById('valGoLive').textContent = goLive;
+    document.getElementById('valDays').textContent = daysUntil;
+    document.getElementById('valTemp').textContent = temp;
+    document.getElementById('valIssues').textContent = openIssues;
     
     var card = document.getElementById('cardTemp');
-    if (card) card.className = 'stat-card temp-' + (p.temperature || 'green').toLowerCase();
+    if (card) card.className = 'stat-card temp-' + String(temp).toLowerCase();
     
     if (p.customerName) {
       document.getElementById('portalTitle').textContent = p.customerName + ' - Project Portal';
@@ -781,8 +791,9 @@ function loadHome() {
 
     var announcementEl = document.getElementById('announcementText');
     if (announcementEl) {
-      if (p.announcement && p.announcement.toString().trim() !== '') {
-        announcementEl.textContent = p.announcement;
+      var annText = p.announcement;
+      if (annText && annText.toString().trim() !== '') {
+        announcementEl.textContent = annText;
         announcementEl.className = 'announcement-text';
       } else {
         announcementEl.textContent = 'No announcements at this time.';
@@ -790,11 +801,17 @@ function loadHome() {
       }
     }
 
-    // Process Recent Items from Bundled Payload
-    renderRecentItemsFromBundle(r.raid);
+    // Process Recent Items (handles both r.raid structure and r.recentIssues array)
+    if (r.raid) {
+      renderRecentItemsFromBundle(r.raid);
+    } else if (r.recentIssues) {
+      renderRecentItemsFromList(r.recentIssues);
+    }
 
     // Process Signoff Status from Bundled Payload
-    renderSignoffFromBundle(r.signoff);
+    if (r.signoff) {
+      renderSignoffFromBundle(r.signoff);
+    }
 
     tabsLoaded.home = true;
   }, function(err) {
@@ -803,6 +820,35 @@ function loadHome() {
       e.textContent = 'Failed to load portal data: ' + err.message;
     }
   });
+}
+
+// Add this helper function below loadHome() to display recent items if using recentIssues array
+function renderRecentItemsFromList(recentIssues) {
+  var section = document.getElementById('recentItemsSection');
+  var container = document.getElementById('recentItemsContainer');
+  if (!section || !container) return;
+
+  if (!recentIssues || recentIssues.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  var html = '<table><thead><tr><th>Type</th><th>Title</th><th>Priority</th><th>Status</th></tr></thead><tbody>';
+  recentIssues.forEach(function(item) {
+    var pCls = 'badge-' + String(item.priority || 'medium').toLowerCase();
+    var sCls = 'badge-' + String(item.status || 'open').toLowerCase().replace(/\s+/g, '-');
+    
+    html += '<tr>' +
+      '<td>' + escHtml(item.type || 'Issue') + '</td>' +
+      '<td>' + escHtml(item.title || 'Untitled') + '</td>' +
+      '<td><span class="badge ' + pCls + '">' + escHtml(item.priority || 'Medium') + '</span></td>' +
+      '<td><span class="badge ' + sCls + '">' + escHtml(item.status || 'Open') + '</span></td>' +
+      '</tr>';
+  });
+  html += '</tbody></table>';
+
+  container.innerHTML = html;
+  section.style.display = 'block';
 }
 
 // =========================================================
