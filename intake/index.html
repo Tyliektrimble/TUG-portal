@@ -1,5 +1,4 @@
-TUG Portal Intake Form - Complete HTML Source Code
-Copy the code below into your repository or the Apps Script HTML file used for the intake form.
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -119,6 +118,33 @@ Copy the code below into your repository or the Apps Script HTML file used for t
     .checkbox-item { font-weight: normal; display: block; margin: 6px 0; color: #333; cursor: pointer; font-size: 0.9rem; }
     .hidden { display: none !important; }
 
+    .product-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+      min-height: 32px;
+      padding: 6px;
+      border: 1px solid var(--card-border);
+      border-radius: 4px;
+      background: #FAFAFA;
+    }
+    .product-chip {
+      background-color: var(--trimble-blue-light);
+      color: white;
+      padding: 4px 10px;
+      border-radius: 16px;
+      font-size: 0.85rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .product-chip .remove-chip {
+      cursor: pointer;
+      font-weight: bold;
+      margin-left: 4px;
+    }
+
     .submit-btn { 
       background-color: var(--trimble-yellow); 
       color: var(--trimble-blue); 
@@ -233,7 +259,6 @@ Copy the code below into your repository or the Apps Script HTML file used for t
 
     <!-- TMWSUITE FORM -->
     <form id="tmwSuiteForm" class="hidden" onsubmit="submitTMWSuite(event)">
-      
       <div class="form-section">
         <label class="inline-checkbox-label">
           <input type="checkbox" id="dbRefreshCheckbox" onchange="toggleDbRefreshFields()">
@@ -247,20 +272,13 @@ Copy the code below into your repository or the Apps Script HTML file used for t
       </div>
 
       <div class="form-section">
-        <label for="discoveryCallDate">Discovery Call Date:</label>
-        <input type="date" id="discoveryCallDate">
+        <label for="testUpgradeDateTmw">Test Upgrade Date: <span class="required">*</span></label>
+        <input type="date" id="testUpgradeDateTmw" required>
       </div>
 
       <div class="form-section">
-        <label class="inline-checkbox-label">
-          <input type="checkbox" id="acceleratorUpgradeCheckbox" onchange="toggleAcceleratorFields()">
-          <strong>Accelerator Upgrade Required?</strong>
-        </label>
-      </div>
-
-      <div class="form-section hidden" id="testUpgradeDateContainerTmw">
-        <label for="testUpgradeDateTmw">Test Upgrade Date: <span class="required">*</span></label>
-        <input type="date" id="testUpgradeDateTmw">
+        <label for="discoveryCallDate">Discovery Call Date:</label>
+        <input type="date" id="discoveryCallDate">
       </div>
 
       <div class="form-section">
@@ -273,8 +291,10 @@ Copy the code below into your repository or the Apps Script HTML file used for t
         <input type="text" id="productSearch" class="search-box" placeholder="Type words to search (e.g. opt trip, web estat)..." onkeyup="filterProducts()">
       </div>
 
+      <label>Selected Products / Modules:</label>
+      <div class="product-chips" id="selectedProductChips"></div>
+
       <label>Select Required Products / Modules (Multi-Select):</label>
-      
       <div class="checkbox-group" id="productChecklist">
         <!-- Javascript will populate this with checkboxes -->
       </div>
@@ -404,6 +424,7 @@ Copy the code below into your repository or the Apps Script HTML file used for t
 
     document.addEventListener("DOMContentLoaded", function() {
       renderProductCheckboxes();
+      updateProductChips();
       
       fetch(APPS_SCRIPT_URL + "?action=getCustomers")
         .then(res => res.json())
@@ -426,11 +447,37 @@ Copy the code below into your repository or the Apps Script HTML file used for t
       if (!container) return;
       var html = '<div class="category-block"><div class="category-title">All Products & Services</div>';
       tmwMasterProducts.forEach(function(prod) {
-        var safeProd = prod.replace(/"/g, '"');
-        html += '<label class="checkbox-item"><input type="checkbox" name="tmwProduct" value="' + safeProd + '"> ' + prod + '</label>';
+        var safeProd = prod.replace(/"/g, '&quot;');
+        html += '<label class="checkbox-item"><input type="checkbox" name="tmwProduct" value="' + safeProd + '" onchange="updateProductChips()"> ' + prod + '</label>';
       });
       html += '</div>';
       container.innerHTML = html;
+    }
+
+    function updateProductChips() {
+      var container = document.getElementById('selectedProductChips');
+      if (!container) return;
+      var checkboxes = document.querySelectorAll('input[name="tmwProduct"]:checked');
+      if (checkboxes.length === 0) {
+        container.innerHTML = '<span style="color:#888; font-size:0.85rem; padding:4px;">No products selected</span>';
+        return;
+      }
+      var html = '';
+      checkboxes.forEach(function(cb) {
+        var val = cb.value;
+        html += '<span class="product-chip">' + val + ' <span class="remove-chip" onclick="removeProductChip(\'' + val.replace(/'/g, "\\'") + '\')">&times;</span></span>';
+      });
+      container.innerHTML = html;
+    }
+
+    function removeProductChip(val) {
+      var checkboxes = document.querySelectorAll('input[name="tmwProduct"]');
+      checkboxes.forEach(function(cb) {
+        if (cb.value === val) {
+          cb.checked = false;
+        }
+      });
+      updateProductChips();
     }
 
     function selectSystem(selection, btnElement) {
@@ -528,20 +575,6 @@ Copy the code below into your repository or the Apps Script HTML file used for t
       }
     }
 
-    function toggleAcceleratorFields() {
-      var isChecked = document.getElementById('acceleratorUpgradeCheckbox').checked;
-      var dateContainer = document.getElementById('testUpgradeDateContainerTmw');
-      var dateInput = document.getElementById('testUpgradeDateTmw');
-      if (isChecked) {
-        dateContainer.classList.remove('hidden');
-        dateInput.required = true;
-      } else {
-        dateContainer.classList.add('hidden');
-        dateInput.required = false;
-        dateInput.value = "";
-      }
-    }
-
     function filterProducts() {
       var rawInput = document.getElementById('productSearch').value.toLowerCase().trim();
       var terms = rawInput.split(/\s+/).filter(Boolean);
@@ -583,6 +616,9 @@ Copy the code below into your repository or the Apps Script HTML file used for t
       document.getElementById('commonFields').classList.add('hidden');
       document.getElementById('truckmateForm').classList.add('hidden');
       document.getElementById('tmwSuiteForm').classList.add('hidden');
+      var checkboxes = document.querySelectorAll('input[name="tmwProduct"]');
+      checkboxes.forEach(function(cb) { cb.checked = false; });
+      updateProductChips();
     }
 
     function submitTruckMate(e) {
@@ -636,9 +672,8 @@ Copy the code below into your repository or the Apps Script HTML file used for t
       var data = getCommonData();
       data.dbRefresh = document.getElementById('dbRefreshCheckbox').checked ? "Yes" : "No";
       data.dbRefreshDate = document.getElementById('dbRefreshDate').value;
-      data.discoveryCallDate = document.getElementById('discoveryCallDate').value;
-      data.acceleratorUpgrade = document.getElementById('acceleratorUpgradeCheckbox').checked ? "Yes" : "No";
       data.testUpgradeDateTmw = document.getElementById('testUpgradeDateTmw').value;
+      data.discoveryCallDate = document.getElementById('discoveryCallDate').value;
       data.projectedUatDate = document.getElementById('projectedUatDate').value;
 
       var selectedProducts = [];
@@ -653,7 +688,6 @@ Copy the code below into your repository or the Apps Script HTML file used for t
             statusDiv.innerText = res;
             document.getElementById('tmwSuiteForm').reset();
             toggleDbRefreshFields();
-            toggleAcceleratorFields();
             resetFormUI();
           })
           .withFailureHandler(err => {
