@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TMWSuite Project Portal</title>
+<script>
+  // 1. Paste your active TMWsuite Apps Script Web App Deployment URL here
+  var MASTER_API_URL = "YOUR_TMWSUITE_MASTER_WEB_APP_URL_HERE";
+
+  // 2. Extract the portal ID directly from the GitHub URL
+  var urlParams = new URLSearchParams(window.location.search);
+  var CURRENT_SHEET_ID = urlParams.get('portalId') || urlParams.get('sheetId');
+</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f4f6f9;color:#333}
+
+.header{background:#0D2B6B;color:#fff;padding:16px 24px;display:flex;align-items:center;gap:16px}
+.header h1{font-size:1.4rem;font-weight:600}
+.nav{background:#1B3A6B;display:flex;gap:0;overflow-x:auto}
+.nav button{background:none;border:none;color:#fff;padding:12px 20px;cursor:pointer;font-size:0.95rem;border-bottom:3px solid transparent;white-space:nowrap}
+.nav button.active{border-bottom:3px solid #4FC3F7;font-weight:600}
+.nav button:hover{background:rgba(255,255,255,0.1)}
+
+.tab{display:none;padding:24px;max-width:95%;margin:0 auto}
+.tab.active{display:block}
+.table-section{background:#fff;border-radius:8px;padding:20px 24px;margin-bottom:24px;box-shadow:0 2px 8px rgba(0,0,0,0.08); overflow: auto; max-height: 60vh;}
+.table-section h3{font-size:1.1rem;font-weight:700;color:#0D2B6B;margin-bottom:16px;text-transform:uppercase;}
+
+.stat-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:#fff;border-radius:8px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);text-align:center}
+.stat-card h3{font-size:0.85rem;color:#666;margin-bottom:8px;text-transform:uppercase}
+.stat-card .value{font-size:1.8rem;font-weight:700;color:#0D2B6B}
+.quick-links{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-top:16px}
+.quick-link-card{background:#fff;border-radius:8px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);cursor:pointer;transition:transform 0.2s}
+.quick-link-card:hover{transform:translateY(-2px)}
+.quick-link-card h4{color:#0D2B6B;margin-bottom:6px}
+.quick-link-card p{font-size:0.85rem;color:#666}
+.quick-link-card.action-card { background:#1976d2; color: white; border: 2px solid #1565c0; }
+.quick-link-card.action-card h4 { color: white;}
+
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden; border: 1px solid #d1d5db;}
+th{background:#0D2B6B;color:#fff;padding:12px 14px;text-align:left;font-size:0.85rem; border: 1px solid #4a6fa5; position: sticky; top: -1px;}
+td{padding:12px 14px;border: 1px solid #e5e7eb; font-size:0.9rem;}
+tr:hover{background:#f9fafb}
+
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 1000; }
+.modal-content { background: #fff; padding: 28px; border-radius: 8px; width: 90%; max-width: 750px; max-height: 90vh; overflow-y: auto; position: relative; }
+.modal-close { position: absolute; top: 16px; right: 20px; font-size: 26px; cursor: pointer; color: #999; }
+.btn-primary { background: #1976d2; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+.btn-cancel { background: #e0e0e0; color: #333; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: bold; cursor: pointer; }
+.btn-add-row { background: #e8f5e9; color: #2e7d32; border: 1px dashed #2e7d32; width: 100%; padding: 8px; cursor: pointer; border-radius: 4px; font-weight: bold; margin-bottom: 16px; }
+.user-entry-table { width: 100%; margin-bottom: 16px; }
+.user-entry-table td { padding: 4px; border:none; }
+.user-entry-table input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+.loading{text-align:center;padding:40px;color:#666}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1 id="portalTitle">TMWSuite Project Portal</h1>
+</div>
+
+<div class="nav">
+  <button class="active" onclick="showTab('home')">Home</button>
+  <button onclick="showTab('raid')">RAID Log</button>
+  <button onclick="showTab('uat')">UAT Plan</button>
+  <button onclick="showTab('cutover')">Upgrade Cutover</button>
+  <button onclick="showTab('contacts')">Contacts</button>
+  <button onclick="refreshData(event)" style="margin-left: auto; color: #4FC3F7; font-weight: bold;">↻ Refresh Data</button>
+</div>
+
+<!-- TAB 1: HOME -->
+<div class="tab active" id="tab-home">
+  <div class="stat-cards">
+    <div class="stat-card"><h3>Go-Live Date</h3><div class="value" id="valGoLive">--</div></div>
+    <div class="stat-card"><h3>Days Until Go-Live</h3><div class="value" id="valDays">--</div></div>
+    <div class="stat-card"><h3>Open Issues</h3><div class="value" id="valIssues">--</div></div>
+    <div class="stat-card"><h3>Temperature</h3><div class="value" id="valTemp">--</div></div>
+  </div>
+
+  <div class="announcements-section" style="background:#fff;border-radius:8px;padding:20px 24px;margin-bottom:24px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+    <h3 style="font-size:0.95rem;font-weight:700;color:#0D2B6B;margin-bottom:10px;text-transform:uppercase;">Announcements</h3>
+    <div id="announcementText" style="font-size:0.95rem;color:#333;">Loading announcements...</div>
+  </div>
+
+  <div class="quick-links">
+    <div class="quick-link-card action-card" onclick="openModal('userModal')">
+      <h4>+ Add User Access</h4><p>Request user access for UAT testing</p>
+    </div>
+    <div class="quick-link-card" onclick="openModal('issueModal')">
+      <h4>+ Submit an Issue</h4><p>Report a risk or issue</p>
+    </div>
+    <div class="quick-link-card" onclick="showTab('uat')">
+      <h4>UAT Plan</h4><p>View module testing status</p>
+    </div>
+    <div class="quick-link-card" onclick="showTab('cutover')">
+      <h4>Cutover Plan</h4><p>View production migration schedule</p>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 2: RAID -->
+<div class="tab" id="tab-raid">
+  <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+    <button onclick="openModal('issueModal')" class="btn-primary">+ Submit an Issue</button>
+  </div>
+  <div class="table-section">
+    <h3>RAID Log Items</h3>
+    <div id="raidTableContainer"><div class="loading">Loading RAID data...</div></div>
+  </div>
+</div>
+
+<!-- TAB 3: UAT PLAN -->
+<div class="tab" id="tab-uat">
+  <div class="table-section">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h3 style="margin:0;">User Access List</h3>
+      <button onclick="openModal('userModal')" class="btn-primary">+ Request User Access</button>
+    </div>
+    <div id="userTableContainer"><div class="loading">Loading user access...</div></div>
+  </div>
+
+  <div class="table-section">
+    <h3>Product Level Upgrade Details</h3>
+    <div id="uatPlanTableContainer"><div class="loading">Loading UAT plan...</div></div>
+  </div>
+</div>
+
+<!-- TAB 4: CUTOVER -->
+<div class="tab" id="tab-cutover">
+  <div class="table-section">
+    <h3>Upgrade Cutover Schedule</h3>
+    <div id="cutoverTableContainer"><div class="loading">Loading Cutover Plan...</div></div>
+  </div>
+</div>
+
+<!-- TAB 5: CONTACTS -->
+<div class="tab" id="tab-contacts">
+  <div class="table-section">
+    <h3>Project Contacts</h3>
+    <div id="contactsTableContainer"><div class="loading">Loading contacts...</div></div>
+  </div>
+</div>
+
+<!-- ISSUE MODAL -->
+<div class="modal-overlay" id="issueModal">
+  <div class="modal-content">
+    <span class="modal-close" onclick="closeModal('issueModal')">×</span>
+    <h3>Submit an Issue</h3>
+    <form id="raidForm" onsubmit="submitRaid(event)">
+      <label style="display:block;margin-bottom:6px;font-weight:600;">Type *</label>
+      <select id="raidType" required style="width:100%;padding:10px;margin-bottom:16px;border:1px solid #ddd;border-radius:6px;"><option value="">Select...</option><option>Risk</option><option>Issue</option></select>
+      
+      <label style="display:block;margin-bottom:6px;font-weight:600;">Title *</label>
+      <input type="text" id="raidTitle" required style="width:100%;padding:10px;margin-bottom:16px;border:1px solid #ddd;border-radius:6px;">
+      
+      <label style="display:block;margin-bottom:6px;font-weight:600;">Description *</label>
+      <textarea id="raidDesc" required style="width:100%;padding:10px;margin-bottom:16px;border:1px solid #ddd;border-radius:6px;min-height:100px;"></textarea>
+      
+      <label style="display:block;margin-bottom:6px;font-weight:600;">Priority</label>
+      <select id="raidPriority" style="width:100%;padding:10px;margin-bottom:16px;border:1px solid #ddd;border-radius:6px;"><option>Medium</option><option>High</option><option>Low</option></select>
+      
+      <label style="display:block;margin-bottom:6px;font-weight:600;">Email *</label>
+      <input type="email" id="raidEmail" required style="width:100%;padding:10px;margin-bottom:16px;border:1px solid #ddd;border-radius:6px;">
+      
+      <div style="display:flex; gap:12px; margin-top:16px;">
+        <button type="submit" id="raidSubmitBtn" class="btn-primary">Submit Issue</button>
+        <button type="button" class="btn-cancel" onclick="closeModal('issueModal')">Cancel</button>
+      </div>
+      <div id="raidMsg" style="margin-top:10px;display:none;padding:10px;border-radius:4px;"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ADD USER MODAL -->
+<div class="modal-overlay" id="userModal">
+  <div class="modal-content">
+    <span class="modal-close" onclick="closeModal('userModal')">×</span>
+    <h3 style="color:#0D2B6B; margin-bottom:10px;">Request User Access</h3>
+    <p style="font-size:0.9rem; color:#666; margin-bottom: 20px;">Add up to 10 users for UAT testing access. The project team will notify you when credentials are ready.</p>
+    
+    <form id="userForm" onsubmit="submitUsers(event)">
+      <table class="user-entry-table" id="userEntryTable">
+        <thead><tr><th>First Name*</th><th>Last Name*</th><th>Email*</th><th>Username (Optional)</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><input type="text" class="uf-first" required></td>
+            <td><input type="text" class="uf-last" required></td>
+            <td><input type="email" class="uf-email" required></td>
+            <td><input type="text" class="uf-user"></td>
+          </tr>
+        </tbody>
+      </table>
+      <button type="button" class="btn-add-row" onclick="addUserRow()">+ Add Another User</button>
+      
+      <div style="display:flex; gap:12px; margin-top:20px;">
+        <button type="submit" id="userSubmitBtn" class="btn-primary">Submit User Roster</button>
+        <button type="button" class="btn-cancel" onclick="closeModal('userModal')">Cancel</button>
+      </div>
+      <div id="userMsg" style="margin-top:16px;display:none;padding:12px;border-radius:4px;font-weight:bold;"></div>
+    </form>
+  </div>
+</div>
+
+<script>
+var tabsLoaded = {home:false, raid:false, uat:false, cutover:false, contacts:false};
+
+function callBackend(action, isPost, payload, cb) {
+  if (!CURRENT_SHEET_ID) {
+    console.error("No Sheet ID provided in URL.");
+    return;
+  }
+  var url = MASTER_API_URL + "?portalId=" + encodeURIComponent(CURRENT_SHEET_ID) + "&action=" + action;
+  var options = { method: isPost ? "POST" : "GET" };
+  if(isPost) {
+    payload = payload || {};
+    payload.sheetId = CURRENT_SHEET_ID;
+    payload.action = action;
+    options.body = JSON.stringify(payload);
+    options.headers = { "Content-Type": "text/plain;charset=utf-8" };
+  }
+  fetch(url, options).then(function(r){ return r.json(); }).then(cb).catch(function(e){ console.error(e); });
+}
+
+function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.nav button').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('tab-'+name).classList.add('active');
+  
+  var btns = document.querySelectorAll('.nav button');
+  var idx = ['home','raid','uat','cutover','contacts'].indexOf(name);
+  if(idx>=0) btns[idx].classList.add('active');
+  
+  if (name==='home') loadHome();
+  if (name==='raid') loadRaid();
+  if (name==='uat') loadUat();
+  if (name==='cutover') loadCutover();
+  if (name==='contacts') loadContacts();
+}
+
+function refreshData(e) {
+  var btn = e.target; var orig = btn.innerText; btn.innerText = "↻ Refreshing...";
+  tabsLoaded = {home:false, raid:false, uat:false, cutover:false, contacts:false};
+  var cur = document.querySelector('.tab.active').id.replace('tab-','');
+  showTab(cur);
+  setTimeout(function(){ btn.innerText = orig; }, 1000);
+}
+
+function renderTable(res, divId, emptyMsg) {
+  var d = document.getElementById(divId);
+  if(!res || !res.ok) { d.innerHTML = "<div style='color:red;'>Error loading data.</div>"; return; }
+  if(!res.rows || res.rows.length===0) { d.innerHTML = "<div style='color:#666;'>"+emptyMsg+"</div>"; return; }
+  
+  var h = "<table><thead><tr>";
+  res.headers.forEach(function(x){ h += "<th>" + esc(x) + "</th>"; });
+  h += "</tr></thead><tbody>";
+  res.rows.forEach(function(r){
+    h += "<tr>";
+    r.forEach(function(c){ h += "<td>" + (esc(c)||'-') + "</td>"; });
+    h += "</tr>";
+  });
+  h += "</tbody></table>";
+  d.innerHTML = h;
+}
+
+function loadHome() {
+  if(tabsLoaded.home) return;
+  callBackend('getHomeBundle', false, null, function(r) {
+    if(r.ok && r.portal) {
+      document.getElementById('valGoLive').innerText = r.portal.goLiveDate;
+      document.getElementById('valDays').innerText = r.portal.daysUntilGoLive;
+      document.getElementById('valTemp').innerText = r.portal.temperature;
+      document.getElementById('valIssues').innerText = r.portal.openIssues;
+      document.getElementById('portalTitle').innerText = r.portal.customerName + " - TMWSuite Portal";
+      document.getElementById('announcementText').innerText = r.portal.announcement || "No announcements";
+      tabsLoaded.home = true;
+    }
+  });
+}
+
+function loadRaid() {
+  if(tabsLoaded.raid) return;
+  document.getElementById('raidTableContainer').innerHTML = "<div class='loading'>Loading...</div>";
+  callBackend('getRaidData', false, null, function(r) {
+    if(r.ok && r.items) {
+      if(r.items.length===0) { document.getElementById('raidTableContainer').innerHTML = "<div style='padding:20px;text-align:center;'>No issues logged.</div>"; return; }
+      var keys = Object.keys(r.items[0]);
+      var res = { ok: true, headers: keys.map(function(k){ return k.replace(/([A-Z])/g, ' $1').replace(/^./, function(s){ return s.toUpperCase(); }); }), rows: r.items.map(function(i){ return keys.map(function(k){ return i[k]; }); }) };
+      renderTable(res, 'raidTableContainer', 'No issues');
+      tabsLoaded.raid = true;
+    }
+  });
+}
+
+function loadUat() {
+  if(tabsLoaded.uat) return;
+  callBackend('getUatPlanData', false, null, function(r) { renderTable(r, 'uatPlanTableContainer', 'No product upgrades planned.'); });
+  callBackend('getUatUsers', false, null, function(r) { renderTable(r, 'userTableContainer', 'No users requested yet.'); });
+  tabsLoaded.uat = true;
+}
+
+function loadCutover() {
+  if(tabsLoaded.cutover) return;
+  callBackend('getUpgradeCutoverData', false, null, function(r) { renderTable(r, 'cutoverTableContainer', 'No cutover schedule mapped yet.'); tabsLoaded.cutover = true; });
+}
+
+function loadContacts() {
+  if(tabsLoaded.contacts) return;
+  callBackend('getContactsData', false, null, function(r) { renderTable(r, 'contactsTableContainer', 'No contacts added.'); tabsLoaded.contacts = true; });
+}
+
+function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function submitRaid(e) {
+  e.preventDefault();
+  var btn = document.getElementById('raidSubmitBtn');
+  var msg = document.getElementById('raidMsg');
+  btn.disabled = true; btn.innerText = "Submitting...";
+  
+  var payload = {
+    type: document.getElementById('raidType').value,
+    title: document.getElementById('raidTitle').value,
+    desc: document.getElementById('raidDesc').value,
+    priority: document.getElementById('raidPriority').value,
+    email: document.getElementById('raidEmail').value
+  };
+
+  callBackend('submitRaidItem', true, payload, function(r) {
+    btn.disabled = false; btn.innerText = "Submit Issue";
+    if(r.ok) { closeModal('issueModal'); tabsLoaded.raid=false; loadRaid(); document.getElementById('raidForm').reset(); }
+    else { msg.style.display="block"; msg.style.background="#ffebee"; msg.style.color="#c62828"; msg.innerText="Error: "+r.error; }
+  });
+}
+
+function addUserRow() {
+  var tbody = document.querySelector('#userEntryTable tbody');
+  if(tbody.children.length >= 10) { alert("Maximum 10 users at a time."); return; }
+  var tr = document.createElement('tr');
+  tr.innerHTML = '<td><input type="text" class="uf-first" required></td><td><input type="text" class="uf-last" required></td><td><input type="email" class="uf-email" required></td><td><input type="text" class="uf-user"></td>';
+  tbody.appendChild(tr);
+}
+
+function submitUsers(e) {
+  e.preventDefault();
+  var btn = document.getElementById('userSubmitBtn');
+  var msg = document.getElementById('userMsg');
+  btn.disabled = true; btn.innerText = "Submitting...";
+
+  var users = [];
+  document.querySelectorAll('#userEntryTable tbody tr').forEach(function(r) {
+    var f = r.querySelector('.uf-first').value.trim();
+    var l = r.querySelector('.uf-last').value.trim();
+    var m = r.querySelector('.uf-email').value.trim();
+    var u = r.querySelector('.uf-user').value.trim();
+    if(f && l && m) users.push({firstName: f, lastName: l, email: m, username: u});
+  });
+
+  callBackend('addUserAccess', true, {users: users}, function(r) {
+    btn.disabled = false; btn.innerText = "Submit User Roster";
+    if(r.ok) { 
+      closeModal('userModal'); 
+      document.querySelector('#userEntryTable tbody').innerHTML = '<tr><td><input type="text" class="uf-first" required></td><td><input type="text" class="uf-last" required></td><td><input type="email" class="uf-email" required></td><td><input type="text" class="uf-user"></td></tr>';
+      tabsLoaded.uat=false; loadUat(); 
+    } else {
+      msg.style.display="block"; msg.style.background="#ffebee"; msg.style.color="#c62828"; msg.innerText="Error: "+r.error;
+    }
+  });
+}
+
+window.onload = loadHome;
+</script>
+</body>
+</html>
