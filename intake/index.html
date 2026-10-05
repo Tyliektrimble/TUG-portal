@@ -662,56 +662,90 @@
         });
       }
     }
+function submitTMWSuite(e) {
+  e.preventDefault();
 
-    function submitTMWSuite(e) {
-      e.preventDefault();
-      var statusDiv = document.getElementById('status');
-      statusDiv.style.color = "blue";
-      statusDiv.innerText = "Submitting TMWSuite request...";
+  var statusDiv = document.getElementById('status');
+  statusDiv.style.color = "blue";
+  statusDiv.innerText = "Submitting TMWSuite request...";
 
-      var data = getCommonData();
-      data.dbRefresh = document.getElementById('dbRefreshCheckbox').checked ? "Yes" : "No";
-      data.dbRefreshDate = document.getElementById('dbRefreshDate').value;
-      data.testUpgradeDateTmw = document.getElementById('testUpgradeDateTmw').value;
-      data.discoveryCallDate = document.getElementById('discoveryCallDate').value;
-      data.projectedUatDate = document.getElementById('projectedUatDate').value;
+  var data = getCommonData();
 
-      var selectedProducts = [];
-      var checkboxes = document.querySelectorAll('input[name="tmwProduct"]:checked');
-      checkboxes.forEach((cb) => { selectedProducts.push(cb.value); });
-      data.selectedProducts = selectedProducts;
+  // Checked means DB refresh is NOT required.
+  data.dbRefresh = document.getElementById('dbRefreshCheckbox').checked
+    ? "No"
+    : "Yes";
 
-      if (typeof google !== 'undefined' && google.script && google.script.run) {
-        google.script.run
-          .withSuccessHandler(res => {
-            statusDiv.style.color = "green";
-            statusDiv.innerText = res;
-            document.getElementById('tmwSuiteForm').reset();
-            toggleDbRefreshFields();
-            resetFormUI();
-          })
-          .withFailureHandler(err => {
-            statusDiv.style.color = "red";
-            statusDiv.innerText = "Error: " + err;
-          })
-          .processTMWSuiteForm(data);
-      } else {
-        fetch(APPS_SCRIPT_URL, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ action: "processTMWSuiteForm", data: data }) 
-        })
-        .then(res => res.json())
-        .then(res => {
-          statusDiv.style.color = "green";
-          statusDiv.innerText = typeof res === 'string' ? res : (res.result || "Success");
-        })
-        .catch(err => {
-          statusDiv.style.color = "red";
-          statusDiv.innerText = "Error: " + err.message;
-        });
-      }
-    }
+  data.dbRefreshDate = document.getElementById('dbRefreshDate').value;
+  data.discoveryCallDate = document.getElementById('discoveryCallDate').value;
+
+  var selectedProducts = [];
+  var checkboxes = document.querySelectorAll('input[name="tmwProduct"]:checked');
+
+  checkboxes.forEach(function(cb) {
+    selectedProducts.push(cb.value);
+  });
+
+  data.selectedProducts = selectedProducts;
+
+  function resetTMWSuiteForm() {
+    document.getElementById('tmwSuiteForm').reset();
+    toggleDbRefreshFields();
+    updateSelectedProductsUI();
+    resetFormUI();
+  }
+
+  if (typeof google !== 'undefined' && google.script && google.script.run) {
+    google.script.run
+      .withSuccessHandler(function(res) {
+        statusDiv.style.color = "green";
+        statusDiv.innerText = typeof res === 'string'
+          ? res
+          : (res.message || res.result || "TMWSuite request submitted successfully.");
+
+        resetTMWSuiteForm();
+      })
+      .withFailureHandler(function(err) {
+        statusDiv.style.color = "red";
+        statusDiv.innerText = "Error: " + err;
+        console.error("TMWSuite submission error:", err);
+      })
+      .processTMWSuiteForm(data);
+  } else {
+    fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify({
+        action: "processTMWSuiteForm",
+        data: data
+      })
+    })
+      .then(function(response) {
+        return response.json();
+      })
+      .then(function(res) {
+        // Shows Apps Script errors instead of falsely displaying Success.
+        if (res && res.ok === false) {
+          throw new Error(res.error || "The TMWSuite request could not be processed.");
+        }
+
+        statusDiv.style.color = "green";
+        statusDiv.innerText = typeof res === 'string'
+          ? res
+          : (res.message || res.result || "TMWSuite request submitted successfully.");
+
+        resetTMWSuiteForm();
+      })
+      .catch(function(err) {
+        statusDiv.style.color = "red";
+        statusDiv.innerText = "Error: " + err.message;
+        console.error("TMWSuite submission error:", err);
+      });
+  }
+}
+    
   </script>
 
   <div style="position: fixed; bottom: 5px; right: 10px; font-size: 10px; color: #d32f2f; font-family: monospace; z-index: 9999;">
