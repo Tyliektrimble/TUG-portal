@@ -483,8 +483,34 @@ function callBackend(action, isPost, payload, cb) {
     options.body = JSON.stringify(payload);
     options.headers = { "Content-Type": "text/plain;charset=utf-8" };
   }
-  fetch(url, options).then(function(r){ return r.json(); }).then(cb).catch(function(e){ console.error(e); });
-}
+var controller = new AbortController();
+
+var timeoutId = setTimeout(function() {
+  controller.abort();
+}, 12000);
+
+options.signal = controller.signal;
+
+fetch(url, options)
+  .then(function(response) {
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error("Request failed with status " + response.status);
+    }
+
+    return response.json();
+  })
+  .then(cb)
+  .catch(function(error) {
+    clearTimeout(timeoutId);
+
+    if (error.name === "AbortError") {
+      console.error("Portal request timed out:", action);
+    } else {
+      console.error("Portal request failed:", action, error);
+    }
+  });}
 
 function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
 
@@ -634,7 +660,16 @@ function submitUsers(e) {
   });
 }
 
-window.onload = loadHome;
+window.onload = function() {
+  loadHome();
+
+  setTimeout(function() {
+    loadRaid();
+    loadUat();
+    loadCutover();
+    loadContacts();
+  }, 100);
+};
 </script>
 </body>
 </html>
