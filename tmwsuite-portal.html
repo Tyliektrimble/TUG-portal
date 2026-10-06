@@ -13,48 +13,299 @@
   var CURRENT_SHEET_ID = urlParams.get('portalId') || urlParams.get('sheetId');
 </script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f4f6f9;color:#333}
+:root {
+  --trimble-blue: #00263E;
+  --trimble-blue-light: #005A9C;
+  --trimble-blue-bright: #0076CE;
+  --trimble-yellow: #F2A900;
+  --page-background: #F4F6F8;
+  --card-background: #FFFFFF;
+  --text-dark: #1F2933;
+  --text-muted: #5F6B76;
+  --border-light: #D8E1E8;
+}
 
-.header{background:#0D2B6B;color:#fff;padding:16px 24px;display:flex;align-items:center;gap:16px}
-.header h1{font-size:1.4rem;font-weight:600}
-.nav{background:#1B3A6B;display:flex;gap:0;overflow-x:auto}
-.nav button{background:none;border:none;color:#fff;padding:12px 20px;cursor:pointer;font-size:0.95rem;border-bottom:3px solid transparent;white-space:nowrap}
-.nav button.active{border-bottom:3px solid #4FC3F7;font-weight:600}
-.nav button:hover{background:rgba(255,255,255,0.1)}
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-.tab{display:none;padding:24px;max-width:95%;margin:0 auto}
-.tab.active{display:block}
-.table-section{background:#fff;border-radius:8px;padding:20px 24px;margin-bottom:24px;box-shadow:0 2px 8px rgba(0,0,0,0.08); overflow: auto; max-height: 60vh;}
-.table-section h3{font-size:1.1rem;font-weight:700;color:#0D2B6B;margin-bottom:16px;text-transform:uppercase;}
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--page-background);
+  color: var(--text-dark);
+}
 
-.stat-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
-.stat-card{background:#fff;border-radius:8px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);text-align:center}
-.stat-card h3{font-size:0.85rem;color:#666;margin-bottom:8px;text-transform:uppercase}
-.stat-card .value{font-size:1.8rem;font-weight:700;color:#0D2B6B}
-.quick-links{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-top:16px}
-.quick-link-card{background:#fff;border-radius:8px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);cursor:pointer;transition:transform 0.2s}
-.quick-link-card:hover{transform:translateY(-2px)}
-.quick-link-card h4{color:#0D2B6B;margin-bottom:6px}
-.quick-link-card p{font-size:0.85rem;color:#666}
-.quick-link-card.action-card { background:#1976d2; color: white; border: 2px solid #1565c0; }
-.quick-link-card.action-card h4 { color: white;}
+.header {
+  background: var(--trimble-blue);
+  color: #FFFFFF;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 4px solid var(--trimble-yellow);
+}
 
-table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden; border: 1px solid #d1d5db;}
-th{background:#0D2B6B;color:#fff;padding:12px 14px;text-align:left;font-size:0.85rem; border: 1px solid #4a6fa5; position: sticky; top: -1px;}
-td{padding:12px 14px;border: 1px solid #e5e7eb; font-size:0.9rem;}
-tr:hover{background:#f9fafb}
+.header h1 {
+  font-size: 1.4rem;
+  font-weight: 600;
+}
 
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 1000; }
-.modal-content { background: #fff; padding: 28px; border-radius: 8px; width: 90%; max-width: 750px; max-height: 90vh; overflow-y: auto; position: relative; }
-.modal-close { position: absolute; top: 16px; right: 20px; font-size: 26px; cursor: pointer; color: #999; }
-.btn-primary { background: #1976d2; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
-.btn-cancel { background: #e0e0e0; color: #333; border: none; padding: 10px 20px; border-radius: 6px; font-size: 0.95rem; font-weight: bold; cursor: pointer; }
-.btn-add-row { background: #e8f5e9; color: #2e7d32; border: 1px dashed #2e7d32; width: 100%; padding: 8px; cursor: pointer; border-radius: 4px; font-weight: bold; margin-bottom: 16px; }
-.user-entry-table { width: 100%; margin-bottom: 16px; }
-.user-entry-table td { padding: 4px; border:none; }
-.user-entry-table input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-.loading{text-align:center;padding:40px;color:#666}
+.nav {
+  background: var(--trimble-blue-light);
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+}
+
+.nav button {
+  background: none;
+  border: none;
+  color: #FFFFFF;
+  padding: 12px 20px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+}
+
+.nav button.active {
+  border-bottom: 3px solid var(--trimble-yellow);
+  background: rgba(255, 255, 255, 0.08);
+  font-weight: 600;
+}
+
+.nav button:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.tab {
+  display: none;
+  padding: 24px;
+  max-width: 95%;
+  margin: 0 auto;
+}
+
+.tab.active {
+  display: block;
+}
+
+.table-section {
+  background: var(--card-background);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 38, 62, 0.10);
+  overflow: auto;
+  max-height: 60vh;
+}
+
+.table-section h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--trimble-blue);
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--card-background);
+  border: 1px solid var(--border-light);
+  border-top: 4px solid var(--trimble-blue-light);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 38, 62, 0.08);
+  text-align: center;
+}
+
+.stat-card h3 {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.stat-card .value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--trimble-blue);
+}
+
+.quick-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.quick-link-card {
+  background: var(--card-background);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 38, 62, 0.08);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.quick-link-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 14px rgba(0, 38, 62, 0.15);
+}
+
+.quick-link-card h4 {
+  color: var(--trimble-blue);
+  margin-bottom: 6px;
+}
+
+.quick-link-card p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.quick-link-card.action-card {
+  background: var(--trimble-blue-light);
+  color: #FFFFFF;
+  border: 2px solid var(--trimble-blue);
+}
+
+.quick-link-card.action-card h4,
+.quick-link-card.action-card p {
+  color: #FFFFFF;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #FFFFFF;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+}
+
+th {
+  background: var(--trimble-blue);
+  color: #FFFFFF;
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 0.85rem;
+  border: 1px solid var(--trimble-blue-light);
+  position: sticky;
+  top: -1px;
+}
+
+td {
+  padding: 12px 14px;
+  border: 1px solid #E5E7EB;
+  font-size: 0.9rem;
+}
+
+tr:hover {
+  background: #F1F7FA;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 38, 62, 0.65);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #FFFFFF;
+  border-top: 5px solid var(--trimble-yellow);
+  padding: 28px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 750px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  font-size: 26px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.btn-primary {
+  background: var(--trimble-blue-light);
+  color: #FFFFFF;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-primary:hover {
+  background: var(--trimble-blue);
+}
+
+.btn-cancel {
+  background: #E5E7EB;
+  color: var(--text-dark);
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.btn-add-row {
+  background: #EAF4F9;
+  color: var(--trimble-blue);
+  border: 1px dashed var(--trimble-blue-light);
+  width: 100%;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: bold;
+  margin-bottom: 16px;
+}
+
+.user-entry-table {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.user-entry-table td {
+  padding: 4px;
+  border: none;
+}
+
+.user-entry-table input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #B9C9D5;
+  border-radius: 4px;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-muted);
+}
 </style>
 </head>
 <body>
@@ -69,7 +320,9 @@ tr:hover{background:#f9fafb}
   <button onclick="showTab('uat')">UAT Plan</button>
   <button onclick="showTab('cutover')">Upgrade Cutover</button>
   <button onclick="showTab('contacts')">Contacts</button>
-  <button onclick="refreshData(event)" style="margin-left: auto; color: #4FC3F7; font-weight: bold;">↻ Refresh Data</button>
+<button onclick="refreshData(event)" style="margin-left: auto; color: #F2A900; font-weight: bold;">
+  ↻ Refresh Data
+</button>
 </div>
 
 <!-- TAB 1: HOME -->
@@ -81,10 +334,18 @@ tr:hover{background:#f9fafb}
     <div class="stat-card"><h3>Temperature</h3><div class="value" id="valTemp">--</div></div>
   </div>
 
-  <div class="announcements-section" style="background:#fff;border-radius:8px;padding:20px 24px;margin-bottom:24px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-    <h3 style="font-size:0.95rem;font-weight:700;color:#0D2B6B;margin-bottom:10px;text-transform:uppercase;">Announcements</h3>
-    <div id="announcementText" style="font-size:0.95rem;color:#333;">Loading announcements...</div>
+<div
+  class="announcements-section"
+  style="background:#fff;border:1px solid #D8E1E8;border-radius:8px;padding:20px 24px;margin-bottom:24px;box-shadow:0 2px 8px rgba(0,38,62,0.08);"
+>
+  <h3 style="font-size:0.95rem;font-weight:700;color:#00263E;margin-bottom:10px;text-transform:uppercase;">
+    Announcements
+  </h3>
+
+  <div id="announcementText" style="font-size:0.95rem;color:#1F2933;">
+    Loading announcements...
   </div>
+</div>
 
   <div class="quick-links">
     <div class="quick-link-card action-card" onclick="openModal('userModal')">
@@ -179,8 +440,8 @@ tr:hover{background:#f9fafb}
 <div class="modal-overlay" id="userModal">
   <div class="modal-content">
     <span class="modal-close" onclick="closeModal('userModal')">×</span>
-    <h3 style="color:#0D2B6B; margin-bottom:10px;">Request User Access</h3>
-    <p style="font-size:0.9rem; color:#666; margin-bottom: 20px;">Add up to 10 users for UAT testing access. The project team will notify you when credentials are ready.</p>
+    <h3 style="color:#00263E; margin-bottom:10px;">Request User Access</h3>
+    <p style="font-size:0.9rem; color:#5F6B76; margin-bottom: 20px;">Add up to 10 users for UAT testing access. The project team will notify you when credentials are ready.</p>
     
     <form id="userForm" onsubmit="submitUsers(event)">
       <table class="user-entry-table" id="userEntryTable">
