@@ -341,23 +341,69 @@ tr:hover{background:#f9fafb}
 var tabsLoaded = {home:false, raid:false, plan:false, contacts:false};
 
 // UNIVERSAL API CALL BRIDGES FOR GITHUB PAGES
+
 function callBackendGet(action, successCb, failureCb) {
   if (!CURRENT_SHEET_ID || CURRENT_SHEET_ID.includes("<?")) {
-    if (failureCb) failureCb({ message: "No portalId or customer parameter found in URL." });
+    if (failureCb) {
+      failureCb({
+        message: "No portalId or customer parameter found in URL."
+      });
+    }
     return;
   }
-  
-  fetch(`${MASTER_API_URL}?portalId=${encodeURIComponent(CURRENT_SHEET_ID)}&action=${action}`)
-    .then(res => res.text())
-    .then(text => {
-      // Catch Google HTML redirects or cold-start error pages before parsing JSON
-      if (text.trim().startsWith("<")) {
-        throw new Error("Temporary Google script timeout. Please refresh.");
+
+  var controller = new AbortController();
+
+  var timeoutId = setTimeout(function() {
+    controller.abort();
+  }, 12000);
+
+  var requestUrl =
+    MASTER_API_URL +
+    "?portalId=" + encodeURIComponent(CURRENT_SHEET_ID) +
+    "&action=" + encodeURIComponent(action);
+
+  fetch(requestUrl, {
+    method: "GET",
+    signal: controller.signal
+  })
+    .then(function(response) {
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error("Request failed with status " + response.status);
       }
+
+      return response.text();
+    })
+    .then(function(text) {
+      // Google can return HTML during a redirect or an unavailable request.
+      if (!text || text.trim().startsWith("<")) {
+        throw new Error(
+          "The portal service returned an invalid response. Please try again."
+        );
+      }
+
       return JSON.parse(text);
     })
-    .then(res => { if (successCb) successCb(res); })
-    .catch(err => { if (failureCb) failureCb(err); });
+    .then(function(result) {
+      if (successCb) {
+        successCb(result);
+      }
+    })
+    .catch(function(error) {
+      clearTimeout(timeoutId);
+
+      if (error.name === "AbortError") {
+        error = new Error(
+          "This portal request took longer than 12 seconds. Please refresh and try again."
+        );
+      }
+
+      if (failureCb) {
+        failureCb(error);
+      }
+    });
 }
 
 function escHtml(s) {
@@ -1022,30 +1068,73 @@ function cancelSignoffAction() {
 }
 function callBackendPost(payload, successCb, failureCb) {
   if (!CURRENT_SHEET_ID || CURRENT_SHEET_ID.includes("<?")) {
-    if (failureCb) failureCb({ message: "No portalId parameter found in URL." });
+    if (failureCb) {
+      failureCb({
+        message: "No portalId parameter found in URL."
+      });
+    }
     return;
   }
 
   payload.sheetId = CURRENT_SHEET_ID;
 
-  // Appending query parameters ensures 302 POST redirects retain action routing
-  var postUrl = MASTER_API_URL + "?portalId=" + encodeURIComponent(CURRENT_SHEET_ID) + "&action=" + encodeURIComponent(payload.action);
+  var controller = new AbortController();
+
+  var timeoutId = setTimeout(function() {
+    controller.abort();
+  }, 45000);
+
+  var postUrl =
+    MASTER_API_URL +
+    "?portalId=" + encodeURIComponent(CURRENT_SHEET_ID) +
+    "&action=" + encodeURIComponent(payload.action);
 
   fetch(postUrl, {
     method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify(payload)
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
+    body: JSON.stringify(payload),
+    signal: controller.signal
   })
-    .then(function(res) { return res.text(); })
+    .then(function(response) {
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error("Request failed with status " + response.status);
+      }
+
+      return response.text();
+    })
     .then(function(text) {
       if (!text || text.trim().startsWith("<")) {
-        throw new Error("Script response invalid or timed out.");
+        throw new Error(
+          "The portal service returned an invalid response. Please try again."
+        );
       }
+
       return JSON.parse(text);
     })
-    .then(function(res) { if (successCb) successCb(res); })
-    .catch(function(err) { if (failureCb) failureCb(err); });
+    .then(function(result) {
+      if (successCb) {
+        successCb(result);
+      }
+    })
+    .catch(function(error) {
+      clearTimeout(timeoutId);
+
+      if (error.name === "AbortError") {
+        error = new Error(
+          "The submission took longer than 45 seconds. It may still have been received. Please check before submitting again."
+        );
+      }
+
+      if (failureCb) {
+        failureCb(error);
+      }
+    });
 }
+
 function sendFeedback() {
   var type = document.getElementById('feedbackType').value;
   var comment = document.getElementById('feedbackComment').value;
@@ -1086,7 +1175,15 @@ function sendFeedback() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  // Load the Home dashboard first.
   loadHome();
+
+  // Then load remaining tabs in the background.
+  setTimeout(function() {
+    loadRaid(false);
+    loadPlan();
+    loadContacts();
+  }, 150);
 });
 </script>
 </body>
