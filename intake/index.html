@@ -305,7 +305,8 @@
     <div id="status"></div>
   </div>
 
-  <script>
+ <script>
+    // CRITICAL: Ensure this matches the exact Web App URL from your active Apps Script deployment
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzu_RI3FVw2vnGg5ifZKCVF-ZKvU3UaSxABZRZiPl2pk9S494VaEVsjLdL-bLJ0knUHKg/exec";
     
     // CUSTOMER LISTS
@@ -632,13 +633,22 @@
       data.goLiveDate = document.getElementById('goLiveDate').value;
       data.notes = document.getElementById('tmNotes').value;
 
+      function resetTruckMateForm() {
+        document.getElementById('truckmateForm').reset();
+        resetFormUI();
+      }
+
       if (typeof google !== 'undefined' && google.script && google.script.run) {
         google.script.run
           .withSuccessHandler(res => {
+            if (res && res.ok === false) {
+              statusDiv.style.color = "red";
+              statusDiv.innerText = "Error: " + (res.error || "Failed to submit request.");
+              return;
+            }
             statusDiv.style.color = "green";
-            statusDiv.innerText = res;
-            document.getElementById('truckmateForm').reset();
-            resetFormUI();
+            statusDiv.innerText = typeof res === 'string' ? res : (res.message || "TruckMate request submitted successfully.");
+            resetTruckMateForm();
           })
           .withFailureHandler(err => {
             statusDiv.style.color = "red";
@@ -653,8 +663,12 @@
         })
         .then(res => res.json())
         .then(res => {
+          if (res && res.ok === false) {
+            throw new Error(res.error || "The TruckMate request could not be processed.");
+          }
           statusDiv.style.color = "green";
-          statusDiv.innerText = typeof res === 'string' ? res : (res.result || "Success");
+          statusDiv.innerText = typeof res === 'string' ? res : (res.message || res.result || "TruckMate request submitted successfully.");
+          resetTruckMateForm();
         })
         .catch(err => {
           statusDiv.style.color = "red";
@@ -662,90 +676,84 @@
         });
       }
     }
-function submitTMWSuite(e) {
-  e.preventDefault();
 
-  var statusDiv = document.getElementById('status');
-  statusDiv.style.color = "blue";
-  statusDiv.innerText = "Submitting TMWSuite request...";
+    function submitTMWSuite(e) {
+      e.preventDefault();
 
-  var data = getCommonData();
+      var statusDiv = document.getElementById('status');
+      statusDiv.style.color = "blue";
+      statusDiv.innerText = "Submitting TMWSuite request...";
 
-  // Checked means DB refresh is NOT required.
-  data.dbRefresh = document.getElementById('dbRefreshCheckbox').checked
-    ? "No"
-    : "Yes";
+      var data = getCommonData();
 
-  data.dbRefreshDate = document.getElementById('dbRefreshDate').value;
-  data.discoveryCallDate = document.getElementById('discoveryCallDate').value;
+      // Checked means DB refresh is NOT required.
+      data.dbRefresh = document.getElementById('dbRefreshCheckbox').checked ? "No" : "Yes";
+      data.dbRefreshDate = document.getElementById('dbRefreshDate').value;
+      data.discoveryCallDate = document.getElementById('discoveryCallDate').value;
 
-  var selectedProducts = [];
-  var checkboxes = document.querySelectorAll('input[name="tmwProduct"]:checked');
+      var selectedProducts = [];
+      var checkboxes = document.querySelectorAll('input[name="tmwProduct"]:checked');
+      checkboxes.forEach(function(cb) { selectedProducts.push(cb.value); });
+      data.selectedProducts = selectedProducts;
 
-  checkboxes.forEach(function(cb) {
-    selectedProducts.push(cb.value);
-  });
+      function resetTMWSuiteForm() {
+        document.getElementById('tmwSuiteForm').reset();
+        toggleDbRefreshFields();
+        updateProductChips(); // Fixed missing function call
+        resetFormUI();
+      }
 
-  data.selectedProducts = selectedProducts;
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res && res.ok === false) {
+              statusDiv.style.color = "red";
+              statusDiv.innerText = "Error: " + (res.error || "Failed to submit request.");
+              return;
+            }
+            statusDiv.style.color = "green";
+            statusDiv.innerText = typeof res === 'string'
+              ? res
+              : (res.message || res.result || "TMWSuite request submitted successfully.");
+            resetTMWSuiteForm();
+          })
+          .withFailureHandler(function(err) {
+            statusDiv.style.color = "red";
+            statusDiv.innerText = "Error: " + err;
+            console.error("TMWSuite submission error:", err);
+          })
+          .processTMWSuiteForm(data);
+      } else {
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            action: "processTMWSuiteForm",
+            data: data
+          })
+        })
+        .then(function(response) {
+          return response.json();
+        })
+        .then(function(res) {
+          if (res && res.ok === false) {
+            throw new Error(res.error || "The TMWSuite request could not be processed.");
+          }
 
-  function resetTMWSuiteForm() {
-    document.getElementById('tmwSuiteForm').reset();
-    toggleDbRefreshFields();
-    updateSelectedProductsUI();
-    resetFormUI();
-  }
+          statusDiv.style.color = "green";
+          statusDiv.innerText = typeof res === 'string'
+            ? res
+            : (res.message || res.result || "TMWSuite request submitted successfully.");
 
-  if (typeof google !== 'undefined' && google.script && google.script.run) {
-    google.script.run
-      .withSuccessHandler(function(res) {
-        statusDiv.style.color = "green";
-        statusDiv.innerText = typeof res === 'string'
-          ? res
-          : (res.message || res.result || "TMWSuite request submitted successfully.");
-
-        resetTMWSuiteForm();
-      })
-      .withFailureHandler(function(err) {
-        statusDiv.style.color = "red";
-        statusDiv.innerText = "Error: " + err;
-        console.error("TMWSuite submission error:", err);
-      })
-      .processTMWSuiteForm(data);
-  } else {
-    fetch(APPS_SCRIPT_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8"
-      },
-      body: JSON.stringify({
-        action: "processTMWSuiteForm",
-        data: data
-      })
-    })
-      .then(function(response) {
-        return response.json();
-      })
-      .then(function(res) {
-        // Shows Apps Script errors instead of falsely displaying Success.
-        if (res && res.ok === false) {
-          throw new Error(res.error || "The TMWSuite request could not be processed.");
-        }
-
-        statusDiv.style.color = "green";
-        statusDiv.innerText = typeof res === 'string'
-          ? res
-          : (res.message || res.result || "TMWSuite request submitted successfully.");
-
-        resetTMWSuiteForm();
-      })
-      .catch(function(err) {
-        statusDiv.style.color = "red";
-        statusDiv.innerText = "Error: " + err.message;
-        console.error("TMWSuite submission error:", err);
-      });
-  }
-}
-    
+          resetTMWSuiteForm();
+        })
+        .catch(function(err) {
+          statusDiv.style.color = "red";
+          statusDiv.innerText = "Error: " + err.message;
+          console.error("TMWSuite submission error:", err);
+        });
+      }
+    }
   </script>
 
   <div style="position: fixed; bottom: 5px; right: 10px; font-size: 10px; color: #d32f2f; font-family: monospace; z-index: 9999;">
